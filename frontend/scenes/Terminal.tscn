@@ -1,0 +1,450 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://scripts/TerminalUI.gd" id="1_term"]
+[ext_resource type="Script" path="res://scripts/NetworkClient.gd" id="2_net"]
+[ext_resource type="PackedScene" path="res://scenes/IsometricViewport.tscn" id="3_view"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_header"]
+bg_color = Color(0.0470588, 0.0705882, 0.101961, 0.98)
+border_width_bottom = 1
+border_color = Color(0.180392, 0.313726, 0.439216, 0.8)
+content_margin_left = 14.0
+content_margin_top = 8.0
+content_margin_right = 14.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_viewport_panel"]
+bg_color = Color(0.0352941, 0.0509804, 0.0784314, 0.98)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.160784, 0.27451, 0.380392, 0.8)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sidebar_panel"]
+bg_color = Color(0.0470588, 0.0666667, 0.0941176, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.160784, 0.27451, 0.380392, 0.8)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+content_margin_left = 10.0
+content_margin_top = 10.0
+content_margin_right = 10.0
+content_margin_bottom = 10.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_box"]
+bg_color = Color(0.0627451, 0.0862745, 0.121569, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.180392, 0.270588, 0.360784, 0.7)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+content_margin_left = 10.0
+content_margin_top = 8.0
+content_margin_right = 10.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_footer"]
+bg_color = Color(0.0470588, 0.0705882, 0.101961, 0.98)
+border_width_top = 1
+border_color = Color(0.180392, 0.313726, 0.439216, 0.8)
+content_margin_left = 14.0
+content_margin_top = 6.0
+content_margin_right = 14.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_bg"]
+bg_color = Color(0.0352941, 0.0470588, 0.0705882, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.141176, 0.211765, 0.294118, 0.8)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_cohesion"]
+bg_color = Color(0.133333, 0.772549, 0.886275, 0.85)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_paranoia"]
+bg_color = Color(0.937255, 0.266667, 0.266667, 0.85)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_pressure"]
+bg_color = Color(0.658824, 0.333333, 0.968627, 0.85)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_timeline"]
+bg_color = Color(0.960784, 0.619608, 0.0431373, 0.85)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[node name="Terminal" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_term")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0352941, 0.0470588, 0.0705882, 1)
+
+[node name="NetworkClient" type="Node" parent="."]
+script = ExtResource("2_net")
+
+[node name="MainLayout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="HeaderBar" type="PanelContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_header")
+
+[node name="HeaderHBox" type="HBoxContainer" parent="MainLayout/HeaderBar"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TerminalTitle" type="Label" parent="MainLayout/HeaderBar/HeaderHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.85, 0.92, 0.98, 1)
+theme_override_font_sizes/font_size = 13
+text = "CHISEL TOWN 1855 // TERRARIUM SURVEILLANCE // TERMINAL A-12"
+
+[node name="StatusHBox" type="HBoxContainer" parent="MainLayout/HeaderBar/HeaderHBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="PhaseBadge" type="Label" parent="MainLayout/HeaderBar/HeaderHBox/StatusHBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.85, 0.95, 1)
+theme_override_font_sizes/font_size = 12
+text = "[PHASE: DECANTING]"
+
+[node name="LiveIndicator" type="Label" parent="MainLayout/HeaderBar/HeaderHBox/StatusHBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 0.95, 0.4, 1)
+theme_override_font_sizes/font_size = 12
+text = "● FEED: LIVE"
+
+[node name="OperatorBadge" type="Label" parent="MainLayout/HeaderBar/HeaderHBox/StatusHBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.75, 0.25, 1)
+theme_override_font_sizes/font_size = 12
+text = "DARRAN HOLLUS [ACTIVE]"
+
+[node name="BodyLayout" type="HBoxContainer" parent="MainLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="ViewportPanel" type="PanelContainer" parent="MainLayout/BodyLayout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_viewport_panel")
+
+[node name="IsometricViewport" parent="MainLayout/BodyLayout/ViewportPanel" instance=ExtResource("3_view")]
+layout_mode = 2
+
+[node name="SidebarPanel" type="PanelContainer" parent="MainLayout/BodyLayout"]
+custom_minimum_size = Vector2(410, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_sidebar_panel")
+
+[node name="SidebarVBox" type="VBoxContainer" parent="MainLayout/BodyLayout/SidebarPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TelemetryBox" type="PanelContainer" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_box")
+
+[node name="VBox" type="VBoxContainer" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/TelemetryBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TelemetryHeader" type="Label" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/TelemetryBox/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.75, 0.95, 1)
+theme_override_font_sizes/font_size = 11
+text = "// REAL-TIME TELEMETRY SENSORS"
+
+[node name="CohesionRow" type="HBoxContainer" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/TelemetryBox/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/TelemetryBox/VBox/CohesionRow"]
+custom_minimum_size = Vector2(145, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.8, 0.9, 1)
+theme_override_font_sizes/font_size = 10
+text = "TOWN COHESION"
+
+[node name="CohesionBar" type="ProgressBar" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/TelemetryBox/VBox/CohesionRow"]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_bar_cohesion")
+value = 90.0
+show_percentage = false
+
+[node name="CohesionValue" type="Label" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/TelemetryBox/VBox/CohesionRow"]
+custom_minimum_size = Vector2(65, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.85, 0.95, 1)
+theme_override_font_sizes/font_size = 10
+text = "90.0%"
+horizontal_alignment = 2
+
+[node name="ParanoiaRow" type="HBoxContainer" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/TelemetryBox/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/TelemetryBox/VBox/ParanoiaRow"]
+custom_minimum_size = Vector2(145, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.8, 0.9, 1)
+theme_override_font_sizes/font_size = 10
+text = "CARL 01 PARANOIA"
+
+[node name="ParanoiaBar" type="ProgressBar" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/TelemetryBox/VBox/ParanoiaRow"]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_bar_paranoia")
+value = 15.0
+show_percentage = false
+
+[node name="ParanoiaValue" type="Label" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/TelemetryBox/VBox/ParanoiaRow"]
+custom_minimum_size = Vector2(65, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.6, 0.2, 1)
+theme_override_font_sizes/font_size = 10
+text = "15.0%"
+horizontal_alignment = 2
+
+[node name="PressureRow" type="HBoxContainer" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/TelemetryBox/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/TelemetryBox/VBox/PressureRow"]
+custom_minimum_size = Vector2(145, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.8, 0.9, 1)
+theme_override_font_sizes/font_size = 10
+text = "SUBTERRANEAN PRESSURE"
+
+[node name="PressureBar" type="ProgressBar" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/TelemetryBox/VBox/PressureRow"]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_bar_pressure")
+max_value = 6.0
+step = 0.01
+value = 2.1
+show_percentage = false
+
+[node name="PressureValue" type="Label" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/TelemetryBox/VBox/PressureRow"]
+custom_minimum_size = Vector2(65, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.5, 0.95, 1)
+theme_override_font_sizes/font_size = 10
+text = "2.10 MPa"
+horizontal_alignment = 2
+
+[node name="HydrophoneBox" type="PanelContainer" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_box")
+
+[node name="VBox" type="VBoxContainer" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/HydrophoneBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Header" type="Label" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/HydrophoneBox/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.75, 0.95, 1)
+theme_override_font_sizes/font_size = 11
+text = "// AUDIO HYDROPHONE // MURK WHISPER PICKUP"
+
+[node name="HydrophoneContent" type="Label" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/HydrophoneBox/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.95, 0.85, 0.5, 0.95)
+theme_override_font_sizes/font_size = 10
+text = "\"Cruel men believe in a cruel god and use their belief to excuse their cruelty.\""
+autowrap_mode = 2
+
+[node name="BobRelayBox" type="PanelContainer" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_box")
+
+[node name="VBox" type="VBoxContainer" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/BobRelayBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Header" type="Label" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/BobRelayBox/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.75, 0.95, 1)
+theme_override_font_sizes/font_size = 11
+text = "// BOB SWEENEY // COASTAL RELAY"
+
+[node name="BobContent" type="Label" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/BobRelayBox/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.85, 0.9, 0.95, 0.95)
+theme_override_font_sizes/font_size = 10
+text = "Decanting cycle complete. Clone 01 stabilized."
+autowrap_mode = 2
+
+[node name="ChroniclerBox" type="PanelContainer" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_box")
+
+[node name="VBox" type="VBoxContainer" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/ChroniclerBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Header" type="Label" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/ChroniclerBox/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.75, 0.95, 1)
+theme_override_font_sizes/font_size = 11
+text = "// CHRONICLER ARCHIVE // LOG STREAM"
+
+[node name="ChroniclerContent" type="Label" parent="MainLayout/BodyLayout/SidebarPanel/SidebarVBox/ChroniclerBox/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.65, 0.75, 0.85, 0.9)
+theme_override_font_sizes/font_size = 10
+text = "Darran Hollus initializes experiment cycle. Clone 01 released into containment quadrant."
+autowrap_mode = 2
+
+[node name="TimelineFooter" type="PanelContainer" parent="MainLayout"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_footer")
+
+[node name="VBox" type="VBoxContainer" parent="MainLayout/TimelineFooter"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HeaderRow" type="HBoxContainer" parent="MainLayout/TimelineFooter/VBox"]
+layout_mode = 2
+
+[node name="TimelineTitle" type="Label" parent="MainLayout/TimelineFooter/VBox/HeaderRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.9, 0.98, 1)
+theme_override_font_sizes/font_size = 11
+text = "SURVEILLANCE TIMELINE // 180s EXPERIMENT CYCLE"
+
+[node name="TimelineStatusLabel" type="Label" parent="MainLayout/TimelineFooter/VBox/HeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.5, 0.7, 0.85, 1)
+theme_override_font_sizes/font_size = 10
+text = "SEGMENT: 01/05 // INCUBATION & EMERGENCE"
+horizontal_alignment = 1
+
+[node name="TimeElapsedLabel" type="Label" parent="MainLayout/TimelineFooter/VBox/HeaderRow"]
+custom_minimum_size = Vector2(90, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.75, 0.25, 1)
+theme_override_font_sizes/font_size = 11
+text = "00:00 / 03:00"
+horizontal_alignment = 2
+
+[node name="TimelineProgressBar" type="ProgressBar" parent="MainLayout/TimelineFooter/VBox"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_bar_timeline")
+max_value = 180.0
+step = 0.1
+show_percentage = false
+
+[node name="PhaseMarkers" type="HBoxContainer" parent="MainLayout/TimelineFooter/VBox"]
+layout_mode = 2
+
+[node name="PhaseDecanting" type="Label" parent="MainLayout/TimelineFooter/VBox/PhaseMarkers"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 45.0
+theme_override_colors/font_color = Color(0.3, 0.85, 0.95, 0.8)
+theme_override_font_sizes/font_size = 9
+text = "[0:00] DECANTING"
+
+[node name="PhaseMurk" type="Label" parent="MainLayout/TimelineFooter/VBox/PhaseMarkers"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 95.0
+theme_override_colors/font_color = Color(0.95, 0.75, 0.2, 0.8)
+theme_override_font_sizes/font_size = 9
+text = "[0:45] MURK WANDERING"
+
+[node name="PhaseDig" type="Label" parent="MainLayout/TimelineFooter/VBox/PhaseMarkers"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 25.0
+theme_override_colors/font_color = Color(0.95, 0.45, 0.1, 0.8)
+theme_override_font_sizes/font_size = 9
+text = "[2:20] THE DIG"
+
+[node name="PhaseCollapse" type="Label" parent="MainLayout/TimelineFooter/VBox/PhaseMarkers"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 15.0
+theme_override_colors/font_color = Color(0.95, 0.2, 0.2, 0.8)
+theme_override_font_sizes/font_size = 9
+text = "[2:45] COLLAPSE"
+
+[node name="PhaseReset" type="Label" parent="MainLayout/TimelineFooter/VBox/PhaseMarkers"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.75, 0.95, 0.8)
+theme_override_font_sizes/font_size = 9
+text = "[3:00] RESET"
+horizontal_alignment = 2
