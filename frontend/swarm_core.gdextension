@@ -1,0 +1,13 @@
+[configuration]
+entry_symbol = "swarm_core_init"
+compatibility_minimum = "4.1"
+
+[libraries]
+linux.debug.x86_64 = "res://bin/libswarm_core.linux.template_debug.x86_64.so"
+linux.release.x86_64 = "res://bin/libswarm_core.linux.template_release.x86_64.so"
+windows.debug.x86_64 = "res://bin/libswarm_core.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "res://bin/libswarm_core.windows.template_release.x86_64.dll"
+macos.debug = "res://bin/libswarm_core.macos.template_debug.framework"
+macos.release = "res://bin/libswarm_core.macos.template_release.framework"
+web.debug.wasm32 = "res://bin/libswarm_core.web.template_debug.wasm32.wasm"
+web.release.wasm32 = "res://bin/libswarm_core.web.template_release.wasm32.wasm"
