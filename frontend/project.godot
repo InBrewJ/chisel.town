@@ -1,0 +1,17 @@
+config_version=5
+
+[application]
+
+config/name="Chisel Town 1855"
+run/main_scene="res://scenes/Terminal.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.web="gl_compatibility"
