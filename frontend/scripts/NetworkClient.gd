@@ -25,15 +25,17 @@ func _ready() -> void:
 		connect_to_server()
 
 func resolve_server_url() -> String:
-	# Check if running in HTML5 / Web export with JavaScriptBridge
-	if ClassDB.class_exists("JavaScriptBridge"):
-		var js_window = JavaScriptBridge.get_interface("window")
-		if js_window:
-			var host: String = str(js_window.location.hostname)
-			if host == "chisel.town" or host.ends_with(".chisel.town"):
-				return "wss://bob.chisel.town/ws"
-			elif host == "localhost" or host == "127.0.0.1":
-				return "ws://localhost:7770/ws"
+	# Dynamic singleton lookup to prevent parse error on Desktop Godot
+	if Engine.has_singleton("JavaScriptBridge"):
+		var bridge = Engine.get_singleton("JavaScriptBridge")
+		if bridge:
+			var js_window = bridge.get_interface("window")
+			if js_window:
+				var host: String = str(js_window.location.hostname)
+				if host == "chisel.town" or host.ends_with(".chisel.town"):
+					return "wss://bob.chisel.town/ws"
+				elif host == "localhost" or host == "127.0.0.1":
+					return "ws://localhost:7770/ws"
 	return server_url
 
 func connect_to_server() -> void:
@@ -41,6 +43,7 @@ func connect_to_server() -> void:
 	if state == WebSocketPeer.STATE_OPEN or state == WebSocketPeer.STATE_CONNECTING:
 		return
 	
+	_ws = WebSocketPeer.new()
 	_active_url = resolve_server_url()
 	print("[NetworkClient] Initiating connection to: ", _active_url)
 	var err = _ws.connect_to_url(_active_url)

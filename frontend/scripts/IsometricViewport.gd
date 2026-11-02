@@ -79,8 +79,8 @@ func update_world_state(state: Dictionary) -> void:
 		elif typeof(raw_pos) == TYPE_VECTOR2:
 			carl_target_pos = raw_pos
 	
-	# If in ColdReset, reset trail
-	if story_phase == "ColdReset" and elapsed_seconds < 1.0:
+	# If in ColdReset or fresh Decanting rollover, reset trail
+	if story_phase == "ColdReset" or (story_phase == "Decanting" and elapsed_seconds < 1.0):
 		_carl_trail.clear()
 		carl_current_pos = carl_target_pos
 
@@ -90,13 +90,12 @@ func _process(delta: float) -> void:
 	# Smoothly interpolate Carl's tracked position
 	carl_current_pos = carl_current_pos.lerp(carl_target_pos, delta * 6.0)
 	
-	# Record trail points periodically
+	# Record trail points periodically in grid coordinates
 	_trail_record_timer += delta
 	if _trail_record_timer >= 0.25:
 		_trail_record_timer = 0.0
-		var current_screen = get_grid_screen_pos(carl_current_pos)
-		if _carl_trail.is_empty() or _carl_trail[-1].distance_to(current_screen) > 4.0:
-			_carl_trail.append(current_screen)
+		if _carl_trail.is_empty() or _carl_trail[-1].distance_to(carl_current_pos) > 0.5:
+			_carl_trail.append(carl_current_pos)
 			if _carl_trail.size() > 50:
 				_carl_trail.pop_front()
 	
@@ -173,7 +172,7 @@ func _draw() -> void:
 	_draw_excavation_site(origin)
 	
 	# 6. Carl 01 Path History & Tracked Agent Reticle
-	_draw_carl_trail()
+	_draw_carl_trail(origin)
 	_draw_carl_agent(origin)
 	
 	# 7. Surveillance Viewport CRT Overlays & Framing
@@ -436,7 +435,7 @@ func _draw_excavation_site(origin: Vector2) -> void:
 	var font_size = 8
 	draw_string(font, base + Vector2(-45, breach_h + 12), "EXCAVATION BULKHEAD", HORIZONTAL_ALIGNMENT_CENTER, 90, font_size, Color(0.9, 0.4, 0.3, 0.8))
 
-func _draw_carl_trail() -> void:
+func _draw_carl_trail(origin: Vector2) -> void:
 	if _carl_trail.size() < 2:
 		return
 	
@@ -445,7 +444,9 @@ func _draw_carl_trail() -> void:
 		var col = Color(0.20, 0.75, 0.95, alpha)
 		if carl_paranoia > 0.6:
 			col = col.lerp(Color(0.95, 0.25, 0.20, alpha), (carl_paranoia - 0.6) * 2.5)
-		draw_line(_carl_trail[i - 1], _carl_trail[i], col, 1.2)
+		var p1 = origin + world_to_iso(_carl_trail[i - 1].x, _carl_trail[i - 1].y)
+		var p2 = origin + world_to_iso(_carl_trail[i].x, _carl_trail[i].y)
+		draw_line(p1, p2, col, 1.2)
 
 func _draw_carl_agent(origin: Vector2) -> void:
 	var screen_pos = get_grid_screen_pos(carl_current_pos)
