@@ -4,7 +4,7 @@ config_version=5
 
 config/name="Chisel Town 1855"
 run/main_scene="res://scenes/Terminal.tscn"
-config/features=PackedStringArray("4.3", "GL Compatibility")
+config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [display]
 
