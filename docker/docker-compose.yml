@@ -1,3 +1,5 @@
+name: chisel-town
+
 services:
   backend:
     container_name: chisel-backend

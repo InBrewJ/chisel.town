@@ -22,11 +22,11 @@ fi
 
 # 2. Stop and remove existing containers
 echo "Stopping previous Chisel Town containers..."
-$DOCKER_COMPOSE -f docker/docker-compose.yml down --remove-orphans || true
+$DOCKER_COMPOSE -p chisel-town -f docker/docker-compose.yml down --remove-orphans || true
 
 # 3. Start containers in detached mode
 echo "Starting Chisel Town 1855 containers (backend: 7770, frontend: 7771)..."
-$DOCKER_COMPOSE -f docker/docker-compose.yml up -d
+$DOCKER_COMPOSE -p chisel-town -f docker/docker-compose.yml up -d
 
 # 4. Wait for services to become healthy via HTTP health checks
 echo "Waiting for Chisel Town services to become healthy (probing backend :7770 and frontend :7771)..."
@@ -63,11 +63,11 @@ done
 
 if [ "$BACKEND_HEALTHY" = true ] && [ "$FRONTEND_HEALTHY" = true ]; then
     echo "🎉 Chisel Town 1855 services are healthy and running!"
-    $DOCKER_COMPOSE -f docker/docker-compose.yml ps
+    $DOCKER_COMPOSE -p chisel-town -f docker/docker-compose.yml ps
     exit 0
 else
     echo "❌ ERROR: Health checks failed after $((MAX_ATTEMPTS * 2)) seconds! Container status and logs:" >&2
-    $DOCKER_COMPOSE -f docker/docker-compose.yml ps || true
-    $DOCKER_COMPOSE -f docker/docker-compose.yml logs --tail 50 || true
+    $DOCKER_COMPOSE -p chisel-town -f docker/docker-compose.yml ps || true
+    $DOCKER_COMPOSE -p chisel-town -f docker/docker-compose.yml logs --tail 50 || true
     exit 1
 fi
