@@ -468,16 +468,29 @@ func update_carl_state(state: Dictionary) -> void:
 	if state.has("phase"):
 		var prev_phase = story_phase
 		story_phase = str(state["phase"])
-		if prev_phase != story_phase and story_phase == "Decanting":
-			_player_pos = Vector3(0.0, 1.6, 0.0)
-			_last_synced_progress = 0.0
-			_camera_yaw = 0.0
-			_barricade_health = 3.0
-			_barricade_breached = false
+		if prev_phase != story_phase:
+			if story_phase == "Decanting":
+				_player_pos = Vector3(0.0, 1.6, 0.0)
+				_last_synced_progress = 0.0
+				_camera_yaw = 0.0
+				_barricade_health = 3.0
+				_barricade_breached = false
+			elif story_phase == "TheDig":
+				_key_w = false
+				_key_s = false
+				_key_a = false
+				_key_d = false
+				_move_input = 0.0
+				_turn_input = 0.0
+				_ui_move = 0.0
+				_ui_turn = 0.0
+				_camera_yaw = 0.0
+				_player_pos = Vector3(0.0, 1.6, -49.5)
+				_last_synced_progress = 1.0
 	if state.has("carl_corridor_progress"):
 		corridor_progress = float(state["carl_corridor_progress"])
 		if abs(corridor_progress - _last_synced_progress) > 0.35 and abs(_move_input) < 0.01:
-			_player_pos.z = -50.0 * corridor_progress
+			_player_pos.z = -47.5 * corridor_progress
 			_last_synced_progress = corridor_progress
 	if state.has("dig_progress"):
 		dig_progress = float(state["dig_progress"])
@@ -587,9 +600,13 @@ func _on_advance_pressed(custom_step: float = 0.08) -> void:
 		next_pos.z = maxf(next_pos.z, -49.5)
 		_player_pos = next_pos
 		_bob_cycle += 1.2
-		var current_calc_progress = clampf(-_player_pos.z / 48.0, 0.0, 1.0)
+		var current_calc_progress = clampf(-_player_pos.z / 47.5, 0.0, 1.0)
 		var step_diff = current_calc_progress - _last_synced_progress
-		if abs(step_diff) > 0.001:
+		if current_calc_progress >= 0.99 and _last_synced_progress < 1.0:
+			var final_step = maxf(1.0 - _last_synced_progress, 0.05)
+			action_requested.emit("player_move", {"step": final_step})
+			_last_synced_progress = 1.0
+		elif abs(step_diff) > 0.0001:
 			action_requested.emit("player_move", {"step": step_diff})
 			_last_synced_progress = current_calc_progress
 
@@ -603,17 +620,21 @@ func _on_backtrack_pressed(custom_step: float = -0.08) -> void:
 		next_pos.z = maxf(next_pos.z, -49.5)
 		_player_pos = next_pos
 		_bob_cycle += 1.2
-		var current_calc_progress = clampf(-_player_pos.z / 48.0, 0.0, 1.0)
+		var current_calc_progress = clampf(-_player_pos.z / 47.5, 0.0, 1.0)
 		var step_diff = current_calc_progress - _last_synced_progress
-		if abs(step_diff) > 0.001:
+		if abs(step_diff) > 0.0001:
 			action_requested.emit("player_move", {"step": step_diff})
 			_last_synced_progress = current_calc_progress
 
 func _flush_movement_sync() -> void:
 	if story_phase == "MurkWandering":
-		var current_calc_progress = clampf(-_player_pos.z / 48.0, 0.0, 1.0)
+		var current_calc_progress = clampf(-_player_pos.z / 47.5, 0.0, 1.0)
 		var step_diff = current_calc_progress - _last_synced_progress
-		if abs(step_diff) > 0.003:
+		if current_calc_progress >= 0.99 and _last_synced_progress < 1.0:
+			var final_step = maxf(1.0 - _last_synced_progress, 0.05)
+			action_requested.emit("player_move", {"step": final_step})
+			_last_synced_progress = 1.0
+		elif abs(step_diff) > 0.0001:
 			action_requested.emit("player_move", {"step": step_diff})
 			_last_synced_progress = current_calc_progress
 
@@ -741,9 +762,14 @@ func _process(delta: float) -> void:
 
 		# Sync progress to server smoothly without client position jumping
 		_sync_timer += delta
-		var current_calc_progress = clampf(-_player_pos.z / 48.0, 0.0, 1.0)
+		var current_calc_progress = clampf(-_player_pos.z / 47.5, 0.0, 1.0)
 		var step_diff = current_calc_progress - _last_synced_progress
-		if abs(step_diff) >= 0.025 or (_sync_timer >= 0.15 and abs(step_diff) >= 0.008) or (_move_input == 0.0 and abs(step_diff) > 0.003):
+		if current_calc_progress >= 0.99 and _last_synced_progress < 1.0:
+			var final_step = maxf(1.0 - _last_synced_progress, 0.05)
+			action_requested.emit("player_move", {"step": final_step})
+			_last_synced_progress = 1.0
+			_sync_timer = 0.0
+		elif abs(step_diff) >= 0.02 or (_sync_timer >= 0.12 and abs(step_diff) >= 0.005) or (_move_input == 0.0 and abs(step_diff) > 0.0001):
 			action_requested.emit("player_move", {"step": step_diff})
 			_last_synced_progress = current_calc_progress
 			_sync_timer = 0.0

@@ -53,6 +53,23 @@ fn test_murk_wandering_player_movement_to_dig() {
 }
 
 #[test]
+fn test_player_movement_small_float_steps_reach_dig() {
+    let mut engine = SimulationEngine::new();
+    engine.handle_action(ClientAction::ReleaseClone);
+    engine.tick(0.1);
+
+    // Send 76 small steps (approx 0.013 each) reaching ~0.995
+    for _ in 0..76 {
+        engine.handle_action(ClientAction::PlayerMove { step: 0.013125 });
+        engine.tick(0.016);
+    }
+
+    let state = engine.current_state();
+    assert_eq!(state.phase, StoryPhase::TheDig);
+    assert_eq!(state.carl_corridor_progress, 1.0);
+}
+
+#[test]
 fn test_dig_minigame_bedrock_choice_and_collapse() {
     let mut engine = SimulationEngine::new();
     engine.handle_action(ClientAction::ReleaseClone);

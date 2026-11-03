@@ -193,7 +193,8 @@ impl SimulationEngine {
                     self.town_cohesion = (0.90 - 0.30 * p).clamp(0.0, 1.0);
                     self.subterranean_pressure = 2.10 + 1.40 * p;
 
-                    if self.carl_corridor_progress >= 1.0 {
+                    if self.carl_corridor_progress >= 0.99 {
+                        self.carl_corridor_progress = 1.0;
                         self.phase = StoryPhase::TheDig;
                         self.dig_progress = 0.0;
                         self.dig_state = DigState::Digging;
