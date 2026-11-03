@@ -29,6 +29,7 @@ class_name TerminalUI
 
 # Interactive C1 Components
 var carl_view: Carl3DCorridor = null
+var bob_cabin_view: BobCabinView = null
 var darran_controls_box: PanelContainer = null
 var release_btn: Button = null
 var cohesion_slider: HSlider = null
@@ -117,6 +118,14 @@ func _setup_interactive_components() -> void:
 	var vp_panel = $MainLayout/BodyLayout/ViewportPanel
 	if vp_panel:
 		vp_panel.add_child(carl_view)
+
+	# 1b. Bob's Stilt Cabin 3D Viewport
+	bob_cabin_view = BobCabinView.new()
+	bob_cabin_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bob_cabin_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	bob_cabin_view.visible = false
+	if vp_panel:
+		vp_panel.add_child(bob_cabin_view)
 
 	# 2. Darran Controls Box in Sidebar
 	var sidebar_vbox = $MainLayout/BodyLayout/SidebarPanel/SidebarVBox
@@ -283,6 +292,8 @@ func _toggle_bob_view() -> void:
 		bob_view_btn.text = "[TOWN MAP]" if bob_view_active else "[BOB'S VIEW]"
 	if viewport:
 		viewport.visible = !bob_view_active
+	if bob_cabin_view:
+		bob_cabin_view.visible = bob_view_active
 
 func _on_carl_action_requested(action_type: String, data: Dictionary) -> void:
 	if network_client:
@@ -388,6 +399,13 @@ func _on_state_updated(state: Dictionary) -> void:
 			var avail: Array = state["available_morphologies"]
 			if avail.size() > 0:
 				selected_blueprint = str(avail[0])
+
+		if bob_cabin_view:
+			bob_cabin_view.update_telemetry(
+				float(state.get("town_cohesion", 0.90)),
+				float(state.get("subterranean_pressure", 2.10)),
+				str(state.get("bob_transmission", ""))
+			)
 		if clone_num > 1:
 			if operator_badge:
 				operator_badge.text = "DARRAN HOLLUS [CYCLE %02d: PLANNING]" % clone_num
