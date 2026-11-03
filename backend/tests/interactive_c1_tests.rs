@@ -159,3 +159,67 @@ fn test_interactive_mode_does_not_expire_at_180s() {
     }
 }
 
+#[test]
+fn test_place_building_and_swarm_stacking() {
+    let mut engine = SimulationEngine::new();
+    assert_eq!(engine.phase(), StoryPhase::Decanting);
+
+    // Place building at site 1
+    engine.handle_action(ClientAction::PlaceBuilding {
+        site_id: 1,
+        building_type: "Mercy Hospital".to_string(),
+    });
+    let state = engine.current_state();
+    assert_eq!(state.town_buildings.len(), 1);
+    assert_eq!(state.town_buildings[0].site_id, 1);
+    assert_eq!(state.town_buildings[0].tier, 1);
+    assert_eq!(state.town_buildings[0].building_type, "Mercy Hospital");
+
+    // Stack a school on the same site 1
+    engine.handle_action(ClientAction::PlaceBuilding {
+        site_id: 1,
+        building_type: "Academy School".to_string(),
+    });
+    let state = engine.current_state();
+    assert_eq!(state.town_buildings.len(), 1);
+    assert_eq!(state.town_buildings[0].tier, 2);
+    assert_eq!(
+        state.town_buildings[0].building_type,
+        "Academy School (Stacked over Mercy Hospital)"
+    );
+}
+
+#[test]
+fn test_cross_cycle_building_persistence() {
+    let mut engine = SimulationEngine::new();
+    engine.handle_action(ClientAction::PlaceBuilding {
+        site_id: 0,
+        building_type: "Iron Barricade".to_string(),
+    });
+    assert_eq!(engine.current_state().town_buildings.len(), 1);
+
+    // Trigger clone reset
+    engine.reset_for_next_clone();
+    let state = engine.current_state();
+    assert_eq!(state.clone_number, 2);
+    // Buildings must persist across cycles
+    assert_eq!(state.town_buildings.len(), 1);
+}
+
+#[test]
+fn test_encounter_dialogue_reduces_paranoia() {
+    let mut engine = SimulationEngine::new();
+    engine.handle_action(ClientAction::TuneParameters {
+        cohesion: None,
+        paranoia: Some(0.80),
+        pressure: None,
+    });
+    assert_eq!(engine.current_state().carl_paranoia, 0.80);
+
+    engine.handle_action(ClientAction::EncounterDialogue {
+        character: "Josiah H Foray".to_string(),
+    });
+    let state = engine.current_state();
+    assert!((state.carl_paranoia - 0.45).abs() < 1e-4);
+}
+

@@ -12,6 +12,15 @@ pub enum DigState {
     Breached,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlacedBuilding {
+    pub site_id: usize,
+    pub building_type: String,
+    pub tier: u32,
+    pub position_m: f32,
+    pub is_ruined: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum ClientAction {
@@ -31,6 +40,13 @@ pub enum ClientAction {
     },
     SelectMorphology {
         morphology_type: String,
+    },
+    PlaceBuilding {
+        site_id: usize,
+        building_type: String,
+    },
+    EncounterDialogue {
+        character: String,
     },
 }
 
@@ -52,6 +68,7 @@ pub struct WorldState {
     pub dig_state: DigState,
     pub active_subtitles: String,
     pub available_morphologies: Vec<String>,
+    pub town_buildings: Vec<PlacedBuilding>,
     pub active_quote: String,
     pub bob_transmission: String,
     pub chronicler_log: String,
@@ -73,6 +90,7 @@ pub struct SimulationEngine {
     dig_state: DigState,
     collapse_timer: f32,
     available_morphologies: Vec<String>,
+    town_buildings: Vec<PlacedBuilding>,
     selected_morphology: Option<String>,
     quote_engine: QuoteEngine,
 }
@@ -99,7 +117,12 @@ impl SimulationEngine {
             dig_progress: 0.0,
             dig_state: DigState::Digging,
             collapse_timer: 0.0,
-            available_morphologies: Vec::new(),
+            available_morphologies: vec![
+                "Iron Barricade".to_string(),
+                "Bastion Wall".to_string(),
+                "Basalt Spire".to_string(),
+            ],
+            town_buildings: Vec::new(),
             selected_morphology: None,
             quote_engine: QuoteEngine::new(),
         }
@@ -219,6 +242,42 @@ impl SimulationEngine {
             ClientAction::SelectMorphology { morphology_type } => {
                 self.selected_morphology = Some(morphology_type);
             }
+            ClientAction::PlaceBuilding {
+                site_id,
+                building_type,
+            } => {
+                let site_pos = match site_id {
+                    0 => 10.0,
+                    1 => 22.0,
+                    2 => 34.0,
+                    3 => 45.0,
+                    _ => 20.0,
+                };
+                if let Some(existing) = self
+                    .town_buildings
+                    .iter_mut()
+                    .find(|b| b.site_id == site_id)
+                {
+                    existing.tier += 1;
+                    existing.building_type = format!(
+                        "{} (Stacked over {})",
+                        building_type, existing.building_type
+                    );
+                } else {
+                    self.town_buildings.push(PlacedBuilding {
+                        site_id,
+                        building_type,
+                        tier: 1,
+                        position_m: site_pos,
+                        is_ruined: false,
+                    });
+                }
+            }
+            ClientAction::EncounterDialogue { character } => {
+                if character == "Josiah H Foray" {
+                    self.carl_paranoia = (self.carl_paranoia - 0.35).max(0.05);
+                }
+            }
         }
     }
 
@@ -236,11 +295,20 @@ impl SimulationEngine {
         self.carl_paranoia = 0.15;
         self.subterranean_pressure = 2.10;
         self.carl_position = (10.0, 10.0);
-        self.available_morphologies = vec![
-            "Monolith Spires".to_string(),
-            "Bastion Wall".to_string(),
-            "Labyrinth Habitats".to_string(),
-        ];
+        self.available_morphologies = if self.clone_number <= 3 {
+            vec![
+                "Iron Barricade".to_string(),
+                "Bastion Wall".to_string(),
+                "Basalt Spire".to_string(),
+            ]
+        } else {
+            vec![
+                "Mercy Hospital".to_string(),
+                "Academy School".to_string(),
+                "General Store".to_string(),
+                "Luthier Workshop".to_string(),
+            ]
+        };
     }
 
     pub fn tick(&mut self, dt: f32) -> WorldState {
@@ -280,6 +348,25 @@ impl SimulationEngine {
             }
         }
 
+        if dt >= 15.0 {
+            let p = ((self.elapsed_seconds - 45.0) / 95.0).clamp(0.0, 1.0);
+            match self.phase {
+                StoryPhase::Decanting => {
+                    self.carl_paranoia = 0.15;
+                }
+                StoryPhase::MurkWandering => {
+                    self.carl_paranoia = (0.15 + 0.60 * p).clamp(0.0, 1.0);
+                }
+                StoryPhase::TheDig => {
+                    let dp = ((self.elapsed_seconds - 140.0) / 25.0).clamp(0.0, 1.0);
+                    self.carl_paranoia = (0.75 + 0.18 * dp).clamp(0.0, 1.0);
+                }
+                StoryPhase::ToxicCollapse | StoryPhase::ColdReset => {
+                    self.carl_paranoia = 0.98;
+                }
+            }
+        }
+
         self.current_state()
     }
 
@@ -295,7 +382,7 @@ impl SimulationEngine {
                     ((self.elapsed_seconds - 45.0) / 95.0).clamp(0.0, 1.0)
                 };
                 let cohesion = 0.90 - 0.30 * p;
-                let paranoia = 0.15 + 0.60 * p;
+                let paranoia = self.carl_paranoia;
                 let pressure = 2.10 + 1.40 * p;
                 let pos = (10.0 + 40.0 * p, 10.0 + 40.0 * p);
                 (cohesion, paranoia, pressure, pos)
@@ -344,6 +431,7 @@ impl SimulationEngine {
             dig_state: self.dig_state,
             active_subtitles,
             available_morphologies: self.available_morphologies.clone(),
+            town_buildings: self.town_buildings.clone(),
             active_quote,
             bob_transmission,
             chronicler_log,
