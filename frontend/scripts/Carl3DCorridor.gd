@@ -458,11 +458,11 @@ func _update_ui_elements() -> void:
 			if _bedrock_mesh:
 				_bedrock_mesh.position.y = 3.0
 
-func _on_advance_pressed() -> void:
+func _on_advance_pressed(custom_step: float = 0.08) -> void:
 	if story_phase == "MurkWandering":
 		_cam_bob += 1.0
 		_screen_shake = 2.5
-		action_requested.emit("player_move", {"step": 0.08})
+		action_requested.emit("player_move", {"step": custom_step})
 
 func _perform_dig_strike(key: String = "A") -> void:
 	if story_phase == "TheDig" and dig_state == "Digging":

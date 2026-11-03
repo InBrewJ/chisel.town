@@ -79,7 +79,7 @@ func _dispatch_action(act_str: String) -> void:
 		"player_move":
 			var step: float = float(parts[1]) if parts.size() > 1 else 0.1
 			if carl_view:
-				carl_view._on_advance_pressed()
+				carl_view._on_advance_pressed(step)
 			elif network_client:
 				network_client.send_action("player_move", {"step": step})
 		"dig_strike":

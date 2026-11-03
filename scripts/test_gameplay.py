@@ -146,8 +146,13 @@ async def main():
             print(f"[Phase 0: Decanting] Phase={phase} Clone={clone}")
             await cdp.capture_screenshot("01_decanting.png")
 
-            # --- Phase 1: Murk Wandering ---
-            print("[Action] Player triggers DECANT & RELEASE CLONE 01...")
+            # --- Darran places Iron Barricade on Site 1 ---
+            print("[Action] Darran places Iron Barricade on Site 1...")
+            await cdp.eval_js("window.chiselAction && window.chiselAction('place_building', '1:Iron Barricade')")
+            await asyncio.sleep(0.5)
+
+            # --- Phase 1: Murk Wandering in 3D ---
+            print("[Action] Player triggers DECANT & RELEASE CLONE 01 into 3D Corridor...")
             await cdp.eval_js("window.chiselAction && window.chiselAction('release_clone')")
             for _ in range(20):
                 await asyncio.sleep(0.3)
@@ -156,11 +161,11 @@ async def main():
                     break
 
             subs = await cdp.eval_js("window.chiselSubtitles")
-            print(f"[Phase 1: Murk Wandering] Phase={phase} Subtitles='{subs}'")
-            await cdp.capture_screenshot("02_murk_wandering.png")
+            print(f"[Phase 1: Murk Wandering 3D] Phase={phase} Subtitles='{subs}'")
+            await cdp.capture_screenshot("02_murk_wandering_3d.png")
 
-            # --- Walking Carl down the building corridor ---
-            print("[Action] Carl walking down the building corridor...")
+            # --- Walking Carl down the 3D building corridor ---
+            print("[Action] Carl walking down the 3D building corridor...")
             for step in range(5):
                 await cdp.eval_js("window.chiselAction && window.chiselAction('player_move', 0.22)")
                 await asyncio.sleep(0.4)
@@ -171,13 +176,13 @@ async def main():
                     break
                 await asyncio.sleep(0.2)
 
-            # --- Phase 2: The Dig ---
+            # --- Phase 2: 3D Bedrock Dig ---
             dig_p = await cdp.eval_js("window.chiselDigProgress")
-            print(f"[Phase 2: The Dig] Phase={phase} DigProgress={dig_p}")
-            await cdp.capture_screenshot("03_the_dig.png")
+            print(f"[Phase 2: 3D Bedrock Dig] Phase={phase} DigProgress={dig_p}")
+            await cdp.capture_screenshot("03_the_dig_3d.png")
 
             # --- Dig strikes until bedrock encountered ---
-            print("[Action] Carl striking rock with shovel...")
+            print("[Action] Carl striking 3D bedrock with 3D spade...")
             for strike in range(6):
                 await cdp.eval_js("window.chiselAction && window.chiselAction('dig_strike')")
                 await asyncio.sleep(0.3)
@@ -190,7 +195,7 @@ async def main():
 
             subs = await cdp.eval_js("window.chiselSubtitles")
             print(f"[Obstacle] Bedrock encountered! DigState={dig_state} Subtitles='{subs}'")
-            await cdp.capture_screenshot("04_bedrock_choice.png")
+            await cdp.capture_screenshot("04_bedrock_choice_3d.png")
 
             # --- Binary Choice: Branch Left (softer basalt vein) ---
             print("[Action] Choosing LEFT branch: chisel softer basalt vein...")
@@ -209,12 +214,12 @@ async def main():
                     break
                 await asyncio.sleep(0.2)
 
-            # --- Phase 3: Toxic Collapse ---
-            print(f"[Phase 3: Toxic Collapse] Phase={phase}")
-            await cdp.capture_screenshot("05_toxic_collapse.png")
+            # --- Phase 3: 3D Toxic Collapse (Crude Oil Flooding) ---
+            print(f"[Phase 3: 3D Toxic Collapse] Phase={phase}")
+            await cdp.capture_screenshot("05_toxic_collapse_3d.png")
 
             # --- Wait for Collapse and Reset to Clone 02 ---
-            print("[Sequence] Crude flooding chamber... Carl drowning... Resetting to C2...")
+            print("[Sequence] 3D crude flooding chamber... Carl drowning... Resetting to C2...")
             for _ in range(40):
                 await asyncio.sleep(0.3)
                 clone = await cdp.eval_js("window.chiselClone")
@@ -225,11 +230,41 @@ async def main():
             print(f"[Phase 4: Cycle Return] Clone={clone} Phase={phase}")
             await cdp.capture_screenshot("06_cycle_02_terminal.png")
 
-            # --- Morphology Selection for C2 ---
-            print("[Action] Darran injecting Bastion Wall morphology for C2 distraction...")
-            await cdp.eval_js("window.chiselAction && window.chiselAction('select_morphology', 'Bastion Wall')")
+            # --- Bob Sweeney Stilt Cabin 3D View ---
+            print("[Action] Testing [BOB'S VIEW] toggle...")
+            await cdp.eval_js("window.chiselAction && window.chiselAction('toggle_bob_view')")
             await asyncio.sleep(1.0)
-            await cdp.capture_screenshot("07_c2_morphology_injected.png")
+            await cdp.capture_screenshot("07_bobs_cabin_3d.png")
+
+            # Toggle back to Town Map
+            await cdp.eval_js("window.chiselAction && window.chiselAction('toggle_bob_view')")
+            await asyncio.sleep(0.5)
+
+            # --- Swarm Stacking in C2 Planning ---
+            print("[Action] Darran places Mercy Hospital on Site 2, then stacks Academy School...")
+            await cdp.eval_js("window.chiselAction && window.chiselAction('place_building', '2:Mercy Hospital')")
+            await asyncio.sleep(0.4)
+            await cdp.eval_js("window.chiselAction && window.chiselAction('place_building', '2:Academy School')")
+            await asyncio.sleep(0.5)
+            await cdp.capture_screenshot("08_c2_swarm_stacked_map.png")
+
+            # --- Release Clone 02 & Josiah H Foray Encounter ---
+            print("[Action] Releasing Clone 02 to encounter Josiah H Foray in 3D...")
+            await cdp.eval_js("window.chiselAction && window.chiselAction('release_clone')")
+            for _ in range(20):
+                await asyncio.sleep(0.3)
+                phase = await cdp.eval_js("window.chiselPhase")
+                if phase == "MurkWandering":
+                    break
+
+            # March to midway (approx z = -22m where Josiah stands)
+            for _ in range(3):
+                await cdp.eval_js("window.chiselAction && window.chiselAction('player_move', 0.16)")
+                await asyncio.sleep(0.4)
+
+            subs = await cdp.eval_js("window.chiselSubtitles")
+            print(f"[Josiah Encounter] Subtitles='{subs}'")
+            await cdp.capture_screenshot("09_josiah_encounter_3d.png")
 
         print("==================================================")
         print("   🎉 ALL GAMEPLAY PHASES VERIFIED SUCCESSFULLY!   ")
