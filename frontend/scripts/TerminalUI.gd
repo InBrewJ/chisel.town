@@ -28,7 +28,7 @@ class_name TerminalUI
 @onready var timeline_status_label: Label = $MainLayout/TimelineFooter/VBox/HeaderRow/TimelineStatusLabel
 
 # Interactive C1 Components
-var carl_view: CarlFirstPersonView = null
+var carl_view: Carl3DCorridor = null
 var darran_controls_box: PanelContainer = null
 var release_btn: Button = null
 var cohesion_slider: HSlider = null
@@ -78,9 +78,8 @@ func _dispatch_action(act_str: String) -> void:
 		"player_move":
 			var step: float = float(parts[1]) if parts.size() > 1 else 0.1
 			if carl_view:
-				carl_view._walk_step_anim += 1.0
-				carl_view._screen_shake = 3.0
-			if network_client:
+				carl_view._on_advance_pressed()
+			elif network_client:
 				network_client.send_action("player_move", {"step": step})
 		"dig_strike":
 			if carl_view:
@@ -110,7 +109,7 @@ func _setup_interactive_components() -> void:
 		header_hbox.add_child(bob_view_btn)
 
 	# 1. Carl's First-Person Viewport
-	carl_view = CarlFirstPersonView.new()
+	carl_view = Carl3DCorridor.new()
 	carl_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	carl_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	carl_view.visible = false
