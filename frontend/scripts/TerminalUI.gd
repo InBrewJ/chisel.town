@@ -40,6 +40,9 @@ var site_buttons_box: PanelContainer = null
 var bob_view_btn: Button = null
 var bob_view_active: bool = false
 var selected_blueprint: String = "Iron Barricade"
+var blueprint_buttons_row: HBoxContainer = null
+var blueprint_status_label: Label = null
+var _last_blueprints: Array = []
 
 var _anim_time: float = 0.0
 var _is_connected: bool = false
@@ -203,16 +206,25 @@ func _setup_interactive_components() -> void:
 		var svb = VBoxContainer.new()
 		svb.add_theme_constant_override("separation", 4)
 		var s_hdr = Label.new()
-		s_hdr.text = "// BLUEPRINT PLACEMENT (CORRIDOR SITES)"
+		s_hdr.text = "// BLUEPRINT & SITE PLACEMENT"
 		s_hdr.modulate = Color(0.3, 0.9, 0.6, 1.0)
 		svb.add_child(s_hdr)
+
+		blueprint_status_label = Label.new()
+		blueprint_status_label.text = "BLUEPRINT: " + selected_blueprint
+		blueprint_status_label.modulate = Color(0.95, 0.85, 0.35, 1.0)
+		svb.add_child(blueprint_status_label)
+
+		blueprint_buttons_row = HBoxContainer.new()
+		blueprint_buttons_row.add_theme_constant_override("separation", 4)
+		svb.add_child(blueprint_buttons_row)
 
 		var s_row = HBoxContainer.new()
 		s_row.add_theme_constant_override("separation", 6)
 		for i in range(4):
 			var btn = Button.new()
 			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			btn.text = "P%d" % (i + 1)
+			btn.text = "PLOT %d" % (i + 1)
 			var s_idx = i
 			btn.pressed.connect(func(): _place_selected_building(s_idx))
 			s_row.add_child(btn)
@@ -285,6 +297,33 @@ func _place_building(site_id: int, b_type: String) -> void:
 			"site_id": site_id,
 			"building_type": b_type
 		})
+
+func _select_blueprint(b_name: String) -> void:
+	selected_blueprint = b_name
+	_update_blueprint_ui()
+
+func _update_blueprint_ui() -> void:
+	if blueprint_status_label:
+		blueprint_status_label.text = "BLUEPRINT: " + selected_blueprint
+	if blueprint_buttons_row:
+		for btn in blueprint_buttons_row.get_children():
+			if btn is Button:
+				var is_sel = (btn.tooltip_text == selected_blueprint or btn.text == selected_blueprint.split(" ")[0])
+				btn.modulate = Color(0.35, 0.95, 0.65, 1.0) if is_sel else Color(0.85, 0.85, 0.85, 1.0)
+
+func _rebuild_blueprint_buttons(blueprints: Array) -> void:
+	if not blueprint_buttons_row:
+		return
+	for child in blueprint_buttons_row.get_children():
+		child.queue_free()
+	for b_name in blueprints:
+		var btn = Button.new()
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.text = b_name.split(" ")[0]
+		btn.tooltip_text = b_name
+		btn.pressed.connect(func(): _select_blueprint(b_name))
+		blueprint_buttons_row.add_child(btn)
+	_update_blueprint_ui()
 
 func _toggle_bob_view() -> void:
 	bob_view_active = !bob_view_active
@@ -370,6 +409,12 @@ func _on_state_updated(state: Dictionary) -> void:
 
 	# Toggle viewport perspective based on narrative phase
 	if phase_str == "MurkWandering" or phase_str == "TheDig" or phase_str == "ToxicCollapse":
+		bob_view_active = false
+		if bob_cabin_view:
+			bob_cabin_view.visible = false
+		if bob_view_btn:
+			bob_view_btn.text = "[BOB'S VIEW]"
+			bob_view_btn.visible = false
 		if viewport:
 			viewport.visible = false
 		if carl_view:
@@ -381,8 +426,6 @@ func _on_state_updated(state: Dictionary) -> void:
 			morphology_box.visible = false
 		if site_buttons_box:
 			site_buttons_box.visible = false
-		if bob_view_btn:
-			bob_view_btn.visible = false
 	else:
 		# Decanting or ColdReset
 		if bob_view_btn:
@@ -390,6 +433,8 @@ func _on_state_updated(state: Dictionary) -> void:
 		if viewport:
 			viewport.visible = !bob_view_active
 			viewport.update_world_state(state)
+		if bob_cabin_view:
+			bob_cabin_view.visible = bob_view_active
 		if carl_view:
 			carl_view.visible = false
 		if site_buttons_box:
@@ -397,8 +442,11 @@ func _on_state_updated(state: Dictionary) -> void:
 
 		if state.has("available_morphologies"):
 			var avail: Array = state["available_morphologies"]
-			if avail.size() > 0:
-				selected_blueprint = str(avail[0])
+			if avail != _last_blueprints:
+				_last_blueprints = avail
+				if avail.size() > 0 and (selected_blueprint == "" or not (selected_blueprint in avail)):
+					selected_blueprint = str(avail[0])
+				_rebuild_blueprint_buttons(avail)
 
 		if bob_cabin_view:
 			bob_cabin_view.update_telemetry(

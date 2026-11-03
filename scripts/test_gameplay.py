@@ -164,11 +164,19 @@ async def main():
             print(f"[Phase 1: Murk Wandering 3D] Phase={phase} Subtitles='{subs}'")
             await cdp.capture_screenshot("02_murk_wandering_3d.png")
 
-            # --- Walking Carl down the 3D building corridor ---
-            print("[Action] Carl walking down the 3D building corridor...")
-            for step in range(5):
-                await cdp.eval_js("window.chiselAction && window.chiselAction('player_move', 0.22)")
-                await asyncio.sleep(0.4)
+            # --- Walking Carl down the 3D building corridor & Breaching C1 Barricade ---
+            print("[Action] Carl walking down the 3D building corridor toward Barricade on Site 1...")
+            # Step toward barricade
+            await cdp.eval_js("window.chiselAction && window.chiselAction('player_move', 0.20)")
+            await asyncio.sleep(0.3)
+            # Strike barricade 3 times to shatter it
+            for _ in range(3):
+                await cdp.eval_js("window.chiselAction && window.chiselAction('player_move', 0.10)")
+                await asyncio.sleep(0.3)
+            # Continue down street to bedrock
+            for _ in range(5):
+                await cdp.eval_js("window.chiselAction && window.chiselAction('player_move', 0.20)")
+                await asyncio.sleep(0.3)
 
             for _ in range(20):
                 phase = await cdp.eval_js("window.chiselPhase")

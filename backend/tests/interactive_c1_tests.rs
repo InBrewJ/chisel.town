@@ -209,17 +209,26 @@ fn test_cross_cycle_building_persistence() {
 #[test]
 fn test_encounter_dialogue_reduces_paranoia() {
     let mut engine = SimulationEngine::new();
-    engine.handle_action(ClientAction::TuneParameters {
-        cohesion: None,
-        paranoia: Some(0.80),
-        pressure: None,
-    });
-    assert_eq!(engine.current_state().carl_paranoia, 0.80);
+    engine.handle_action(ClientAction::ReleaseClone);
+    engine.tick(0.1);
+    assert_eq!(engine.phase(), StoryPhase::MurkWandering);
 
+    // Advance far enough along the corridor so paranoia is well above floor
+    engine.handle_action(ClientAction::PlayerMove { step: 0.80 });
+    let before_paranoia = engine.current_state().carl_paranoia;
+    assert!(before_paranoia > 0.50);
+
+    // Encounter Josiah
     engine.handle_action(ClientAction::EncounterDialogue {
         character: "Josiah H Foray".to_string(),
     });
-    let state = engine.current_state();
-    assert!((state.carl_paranoia - 0.45).abs() < 1e-4);
+    let after_paranoia = engine.current_state().carl_paranoia;
+    assert!(after_paranoia < before_paranoia);
+    assert!((after_paranoia - (before_paranoia - 0.35)).abs() < 1e-3);
+
+    // Subsequent movement MUST RETAIN the 0.35 reduction rather than recalculating from zero
+    engine.handle_action(ClientAction::PlayerMove { step: 0.05 });
+    let next_paranoia = engine.current_state().carl_paranoia;
+    assert!(next_paranoia < before_paranoia);
 }
 

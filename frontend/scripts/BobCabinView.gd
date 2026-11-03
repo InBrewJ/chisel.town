@@ -61,9 +61,9 @@ func _setup_3d_cabin() -> void:
 	# Third-Person Interior Camera
 	_camera = Camera3D.new()
 	_camera.position = Vector3(1.6, 1.7, 2.1)
-	_camera.look_at(Vector3(-0.2, 1.1, -0.6), Vector3.UP)
 	_camera.current = true
 	world.add_child(_camera)
+	_camera.look_at(Vector3(-0.2, 1.1, -0.6), Vector3.UP)
 
 	# Timber Floor
 	var floor_m = MeshInstance3D.new()
@@ -237,8 +237,10 @@ func _setup_hud() -> void:
 	_quote_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	_quote_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_quote_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_quote_label.position = Vector2(40, -55)
-	_quote_label.size = Vector2(size.x - 80, 40)
+	_quote_label.offset_left = 40
+	_quote_label.offset_right = -40
+	_quote_label.offset_top = -65
+	_quote_label.offset_bottom = -15
 	_quote_label.modulate = Color(0.9, 0.85, 0.65, 1.0)
 	add_child(_quote_label)
 

@@ -1,25 +1,9 @@
 next up:
 
-0. Now that we have an awesome semblance of a game, let's make it a little playable. The current simulation runs for three minutes, let's make that playable for the user. We'll create C1's incredibly short journey which lays the foundation of C2 and the rest of Darran's experiments.
+0. We now have a semblance of a loop: a clone lives, a clone goes down a corridor, a clone dies. And on the next iteration the 'Darran' character can sort of build the world. But when Carl walks, he does not see this world that Darran has built. Make it so the Darran view is also a town builder, with the stable morphologies and so when we go into first person mode, we see the world that the father has built. Also, in the first person view, we should have the ability to turn left and right and backwards and, with the spade, attempt to break through walls (they are destructable like in the Red Faction games)
 
-'decanting'
+1. Can we add some nice textures to the walls and floor in first person view? What assets are available on the web for a 3d spade?
 
-before this step, we the player should play as Darran tweaking variables for the first clone. At the end there is a 'release' button
+2. The first 3 clones should be attempts for Darran to simply stop Carl from getting to the goo (the oil, the murk). After C4, Darran realises he needs to build a society and a community to help Carl, as much as possible. 
 
-'murk wandering'
-
-suddenly the game flips into first person mode, you are the eyes of Carl. It's your job to walk to the murk hazard through, well, the murk. It can be a straight corridor of buildings
-
-'the dig'
-
-still in Carl mode, him muttering to himself all the time (viewed as subtitles) shovel in hand, we start to dig
-
-to dig, the player must press a combination of buttons really fast
-
-then there is some sort of challenge in the dig - we hit a hard rock. We must dig in one of two ways. For the player, one way is good and leads to success and the other is a dead end. Binary choice.
-
-'collapse'
-
-Carl reaches the target, breaches the wall of the goo and literally falls in and drowns in oil. Tragedy
-
-1. The above leads back to the surveillance terminal where Darran tweaks the paramters again, all to save his son. When the parameters are chosen, Darran has the bright idea to introduce more buildings into Chisel town in an attempt to distract Carl. This is where some of the crazy building morphologies come in.
+3. this is where bob sweeney comes in, who lives in a cabin on stilts in the beached beach (the cabin is surrounded by beached whale skeletons and ships run aground). His cabin is visible on Darran's map. Bob lives, for now, as a source of data for Darran; he is the one monitoring town cohesion and subterreanean pressure. He'll live in the terminal for now, but he'll get his first person view and storyline later. As a prototype though, let's have a button on the terminal that says 'Bob's view' which goes into a third person view in the cabin, where he is surrounded by machinery and dials and valves.

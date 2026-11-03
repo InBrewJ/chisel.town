@@ -45,6 +45,8 @@ var _shovel_swing_timer: float = 0.0
 var _screen_shake: float = 0.0
 var _barricade_health: float = 3.0
 var _barricade_breached: bool = false
+var _has_active_barricade: bool = false
+var _barricade_z: float = -11.0
 
 # Corridor Plot Z Coordinates (0 to -50m)
 const PLOT_Z = [-11.0, -22.0, -33.0, -44.0]
@@ -243,6 +245,10 @@ func _build_bedrock_face(parent: Node3D) -> void:
 
 func rebuild_placed_buildings(buildings: Array) -> void:
 	town_buildings = buildings
+	_has_active_barricade = false
+	_barricade_breached = false
+	_barricade_health = 3.0
+
 	for child in _buildings_root.get_children():
 		child.queue_free()
 
@@ -259,6 +265,8 @@ func rebuild_placed_buildings(buildings: Array) -> void:
 
 		# Check if containment barrier in street path
 		if ("Barricade" in b_type or "Bastion" in b_type) and clone_number <= 3:
+			_has_active_barricade = true
+			_barricade_z = z_pos
 			_spawn_street_barricade(z_pos, b_type)
 		else:
 			_spawn_building_facade(site_id, z_pos, tier, b_type)
@@ -314,8 +322,10 @@ func _setup_ui_overlays() -> void:
 	_subtitle_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	_subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_subtitle_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_subtitle_label.position = Vector2(30, -85)
-	_subtitle_label.size = Vector2(size.x - 60, 40)
+	_subtitle_label.offset_left = 30
+	_subtitle_label.offset_right = -30
+	_subtitle_label.offset_top = -90
+	_subtitle_label.offset_bottom = -15
 	_subtitle_label.modulate = Color(1.0, 0.95, 0.85, 1.0)
 	add_child(_subtitle_label)
 
@@ -400,6 +410,8 @@ func update_carl_state(state: Dictionary) -> void:
 		active_subtitles = str(state["active_subtitles"])
 	if state.has("clone_number"):
 		clone_number = int(state["clone_number"])
+	if _josiah_node:
+		_josiah_node.visible = (clone_number >= 4)
 	if corridor_progress < 0.05 or story_phase == "Decanting":
 		_josiah_encountered = false
 	if state.has("town_buildings"):
@@ -460,6 +472,32 @@ func _update_ui_elements() -> void:
 
 func _on_advance_pressed(custom_step: float = 0.08) -> void:
 	if story_phase == "MurkWandering":
+		# Check if blocked by containment barricade
+		var next_z = -50.0 * (corridor_progress + custom_step)
+		if _has_active_barricade and !_barricade_breached and next_z <= (_barricade_z + 1.5):
+			# Carl strikes the barricade with the 3D spade!
+			_cam_bob += 0.5
+			_shovel_swing_timer = 0.25
+			_screen_shake = 6.0
+			_barricade_health -= 1.0
+			if _spark_light:
+				_spark_light.position = Vector3(0.0, 1.2, _barricade_z + 0.6)
+				_spark_light.light_energy = 3.5
+			if _barricade_health > 0.0:
+				_status_label.text = "OBSTACLE: DARRAN'S BARRICADE (STRIKES: %d/3)" % int(_barricade_health)
+				_status_label.modulate = Color(1.0, 0.4, 0.2, 1.0)
+				_subtitle_label.text = '[CARL C-%02d]: "Father threw an iron barricade across the avenue! Strike it to break through!"' % clone_number
+				return
+			else:
+				_barricade_breached = true
+				if _barricade_root:
+					_barricade_root.visible = false
+				_status_label.text = "BARRICADE BREACHED // ADVANCING TO BEDROCK"
+				_status_label.modulate = Color(0.35, 0.95, 0.55, 1.0)
+				_subtitle_label.text = '[CARL C-%02d]: "The iron collapsed... nothing stops the descent."' % clone_number
+				action_requested.emit("player_move", {"step": custom_step})
+				return
+
 		_cam_bob += 1.0
 		_screen_shake = 2.5
 		action_requested.emit("player_move", {"step": custom_step})
@@ -527,8 +565,8 @@ func _process(delta: float) -> void:
 		var bob_y = sin(_cam_bob * 3.14) * 0.06
 		_camera.position = Vector3(0.0, 1.6 + bob_y, target_z) + shake_offset
 
-		# Josiah H Foray Proximity Encounter (Clone >= 4 or when near z = -22m)
-		if _josiah_node and !_josiah_encountered and story_phase == "MurkWandering":
+		# Josiah H Foray Proximity Encounter (Strictly Clone >= 4)
+		if clone_number >= 4 and _josiah_node and !_josiah_encountered and story_phase == "MurkWandering":
 			if abs(_camera.position.z - (-22.0)) < 3.8:
 				_josiah_encountered = true
 				var dialogue_text = "JOSIAH H FORAY: \"Tell me, are you unhoused? You seem to me like you could be a wretch. I have seen you everywhere, in every corner\" ... \"A wretch? Well perhaps, but I live over in the Bearing quarter with my dear mother, just until my own lodging at college is prepared, however outlandish that may seem\" ... \"what does that mean?\" ... \"It means unexpected, roguish\" ... \"Do I ... seem like a noble man to you?\""

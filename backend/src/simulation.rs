@@ -92,6 +92,7 @@ pub struct SimulationEngine {
     available_morphologies: Vec<String>,
     town_buildings: Vec<PlacedBuilding>,
     selected_morphology: Option<String>,
+    paranoia_reduction: f32,
     quote_engine: QuoteEngine,
 }
 
@@ -124,6 +125,7 @@ impl SimulationEngine {
             ],
             town_buildings: Vec::new(),
             selected_morphology: None,
+            paranoia_reduction: 0.0,
             quote_engine: QuoteEngine::new(),
         }
     }
@@ -187,7 +189,7 @@ impl SimulationEngine {
                     self.carl_corridor_progress = (self.carl_corridor_progress + step).clamp(0.0, 1.0);
                     let p = self.carl_corridor_progress;
                     self.carl_position = (10.0 + 40.0 * p, 10.0 + 40.0 * p);
-                    self.carl_paranoia = (0.15 + 0.60 * p).clamp(0.0, 1.0);
+                    self.carl_paranoia = (0.15 + 0.60 * p - self.paranoia_reduction).clamp(0.05, 1.0);
                     self.town_cohesion = (0.90 - 0.30 * p).clamp(0.0, 1.0);
                     self.subterranean_pressure = 2.10 + 1.40 * p;
 
@@ -275,6 +277,7 @@ impl SimulationEngine {
             }
             ClientAction::EncounterDialogue { character } => {
                 if character == "Josiah H Foray" {
+                    self.paranoia_reduction = (self.paranoia_reduction + 0.35).min(0.80);
                     self.carl_paranoia = (self.carl_paranoia - 0.35).max(0.05);
                 }
             }
@@ -294,6 +297,7 @@ impl SimulationEngine {
         self.town_cohesion = 0.90;
         self.carl_paranoia = 0.15;
         self.subterranean_pressure = 2.10;
+        self.paranoia_reduction = 0.0;
         self.carl_position = (10.0, 10.0);
         self.available_morphologies = if self.clone_number <= 3 {
             vec![
@@ -394,7 +398,7 @@ impl SimulationEngine {
                     ((self.elapsed_seconds - 140.0) / 25.0).clamp(0.0, 1.0)
                 };
                 let cohesion = 0.60 - 0.25 * dp;
-                let paranoia = 0.75 + 0.18 * dp;
+                let paranoia = (0.75 + 0.18 * dp - self.paranoia_reduction).clamp(0.05, 1.0);
                 let pressure = 3.50 + 1.70 * dp;
                 let pos = (50.0 + 10.0 * dp, 50.0 + 10.0 * dp);
                 (cohesion, paranoia, pressure, pos)
