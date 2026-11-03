@@ -1,0 +1,25 @@
+# Version control and agent workspaces
+.git/
+.gitignore
+.superpowers/
+
+# Documentation and binary PDFs
+*.pdf
+docs/*.pdf
+
+# Rust compilation target artifacts
+backend/target/
+target/
+
+# Godot editor cache and import data
+frontend/.godot/
+.godot/
+*.uid
+
+# Environment variables and credentials
+.env
+*.local
+
+# Logs
+logs/
+*.log
