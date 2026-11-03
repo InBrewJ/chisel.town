@@ -164,6 +164,35 @@ async def main():
             print(f"[Phase 1: Murk Wandering 3D] Phase={phase} Subtitles='{subs}'")
             await cdp.capture_screenshot("02_murk_wandering_3d.png")
 
+            # --- Interactive 3D Inspection: Turning Left & Right (A/D) ---
+            print("[Action] Turning view to inspect left facades (A / LEFT)...")
+            await cdp.eval_js("window.chiselAction && window.chiselAction('player_turn', 0.65)")
+            await asyncio.sleep(0.3)
+            yaw_left = await cdp.eval_js("Number(window.chiselCameraYaw)")
+            print(f"[Look Left] Camera Yaw={yaw_left:.3f} rad")
+            await cdp.capture_screenshot("02b_corridor_turned_left_3d.png")
+
+            print("[Action] Turning view to inspect right facades (D / RIGHT)...")
+            await cdp.eval_js("window.chiselAction && window.chiselAction('player_turn', -1.30)")
+            await asyncio.sleep(0.3)
+            yaw_right = await cdp.eval_js("Number(window.chiselCameraYaw)")
+            print(f"[Look Right] Camera Yaw={yaw_right:.3f} rad")
+            await cdp.capture_screenshot("02c_corridor_turned_right_3d.png")
+
+            # Re-center look straight ahead
+            await cdp.eval_js("window.chiselAction && window.chiselAction('player_turn', 0.65)")
+            await asyncio.sleep(0.2)
+
+            # --- Test Backtracking (S / DOWN) ---
+            print("[Action] Testing backward movement step (S / DOWN)...")
+            await cdp.eval_js("window.chiselAction && window.chiselAction('player_move', 0.15)")
+            await asyncio.sleep(0.3)
+            prog_before = await cdp.eval_js("window.chiselState ? Number(window.chiselState.carl_corridor_progress) : 0.15")
+            await cdp.eval_js("window.chiselAction && window.chiselAction('player_move', -0.08)")
+            await asyncio.sleep(0.3)
+            prog_after = await cdp.eval_js("window.chiselState ? Number(window.chiselState.carl_corridor_progress) : 0.07")
+            print(f"[Backtrack] Progress: {prog_before:.2f} -> {prog_after:.2f}")
+
             # --- Walking Carl down the 3D building corridor & Breaching C1 Barricade ---
             print("[Action] Carl walking down the 3D building corridor toward Barricade on Site 1...")
             # Step toward barricade
