@@ -85,6 +85,10 @@ func _dispatch_action(act_str: String) -> void:
 				carl_view._on_advance_pressed(step)
 			elif network_client:
 				network_client.send_action("player_move", {"step": step})
+		"player_turn":
+			var yaw_delta: float = float(parts[1]) if parts.size() > 1 else 0.5
+			if carl_view:
+				carl_view.apply_turn_delta(yaw_delta)
 		"dig_strike":
 			if carl_view:
 				carl_view._perform_dig_strike("A")
@@ -479,7 +483,8 @@ func _on_state_updated(state: Dictionary) -> void:
 		var bridge = Engine.get_singleton("JavaScriptBridge")
 		if bridge:
 			var json_payload = JSON.stringify(state)
-			bridge.eval("try { window.chiselState = " + json_payload + "; window.chiselPhase = window.chiselState.phase; window.chiselClone = window.chiselState.clone_number; window.chiselDigState = window.chiselState.dig_state; window.chiselDigProgress = window.chiselState.dig_progress; window.chiselSubtitles = window.chiselState.active_subtitles; } catch(e) { console.error('Bridge state error:', e); }")
+			var yaw_val: float = carl_view.get_camera_yaw() if carl_view else 0.0
+			bridge.eval("try { window.chiselState = " + json_payload + "; window.chiselPhase = window.chiselState.phase; window.chiselClone = window.chiselState.clone_number; window.chiselDigState = window.chiselState.dig_state; window.chiselDigProgress = window.chiselState.dig_progress; window.chiselSubtitles = window.chiselState.active_subtitles; window.chiselCameraYaw = " + str(yaw_val) + "; } catch(e) { console.error('Bridge state error:', e); }")
 	
 	# Town Cohesion Telemetry
 	if state.has("town_cohesion") and cohesion_bar and cohesion_val:

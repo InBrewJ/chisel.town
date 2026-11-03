@@ -31,12 +31,31 @@ var _josiah_encountered: bool = false
 # UI Overlay Elements
 var _status_label: Label = null
 var _subtitle_label: Label = null
+var _nav_container: HBoxContainer = null
+var _btn_turn_left: Button = null
+var _btn_move_fwd: Button = null
+var _btn_move_back: Button = null
+var _btn_turn_right: Button = null
 var _advance_btn: Button = null
 var _dig_bar: ProgressBar = null
 var _dig_left_btn: Button = null
 var _dig_right_btn: Button = null
 var _branch_panel: PanelContainer = null
 var _vignette_rect: ColorRect = null
+
+# Interactive Look & Locomotion State
+var _camera_yaw: float = 0.0
+var _turn_input: float = 0.0
+var _move_input: float = 0.0
+var _ui_turn: float = 0.0
+var _ui_move: float = 0.0
+var _key_w: bool = false
+var _key_s: bool = false
+var _key_a: bool = false
+var _key_d: bool = false
+var _pending_move_step: float = 0.0
+var _move_timer: float = 0.0
+var _spade_inertial_rot_y: float = 0.0
 
 # Animation Variables
 var _anim_time: float = 0.0
@@ -55,6 +74,14 @@ func _init() -> void:
 	name = "Carl3DCorridor"
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+func get_camera_yaw() -> float:
+	return _camera_yaw
+
+func apply_turn_delta(delta_yaw: float) -> void:
+	_camera_yaw += delta_yaw
+	if _camera:
+		_camera.rotation.y = _camera_yaw
 
 func _ready() -> void:
 	_setup_3d_environment()
@@ -329,14 +356,49 @@ func _setup_ui_overlays() -> void:
 	_subtitle_label.modulate = Color(1.0, 0.95, 0.85, 1.0)
 	add_child(_subtitle_label)
 
-	# 4. Advance Button for Corridor Transit
-	_advance_btn = Button.new()
-	_advance_btn.text = ">> MARCH DOWN 3D CORRIDOR [W / UP] >>"
-	_advance_btn.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_advance_btn.position = Vector2(-160, -135)
-	_advance_btn.size = Vector2(320, 38)
-	_advance_btn.pressed.connect(_on_advance_pressed)
-	add_child(_advance_btn)
+	# 4. Navigation Control Bar for Corridor Transit
+	_nav_container = HBoxContainer.new()
+	_nav_container.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_nav_container.offset_left = -270
+	_nav_container.offset_top = -140
+	_nav_container.offset_right = 270
+	_nav_container.offset_bottom = -98
+	_nav_container.add_theme_constant_override("separation", 8)
+
+	_btn_turn_left = Button.new()
+	_btn_turn_left.text = "[A] ↺ LEFT"
+	_btn_turn_left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_btn_turn_left.button_down.connect(func(): _ui_turn = 1.0)
+	_btn_turn_left.button_up.connect(func(): _ui_turn = 0.0)
+	_btn_turn_left.pressed.connect(func(): apply_turn_delta(0.25))
+	_nav_container.add_child(_btn_turn_left)
+
+	_btn_move_fwd = Button.new()
+	_btn_move_fwd.text = "[W] ▲ ADVANCE"
+	_btn_move_fwd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_btn_move_fwd.button_down.connect(func(): _ui_move = 1.0)
+	_btn_move_fwd.button_up.connect(func(): _ui_move = 0.0; _flush_pending_movement())
+	_btn_move_fwd.pressed.connect(func(): _on_advance_pressed(0.08))
+	_nav_container.add_child(_btn_move_fwd)
+
+	_btn_move_back = Button.new()
+	_btn_move_back.text = "[S] ▼ BACK"
+	_btn_move_back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_btn_move_back.button_down.connect(func(): _ui_move = -1.0)
+	_btn_move_back.button_up.connect(func(): _ui_move = 0.0; _flush_pending_movement())
+	_btn_move_back.pressed.connect(func(): _on_backtrack_pressed(-0.08))
+	_nav_container.add_child(_btn_move_back)
+
+	_btn_turn_right = Button.new()
+	_btn_turn_right.text = "[D] ↻ RIGHT"
+	_btn_turn_right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_btn_turn_right.button_down.connect(func(): _ui_turn = -1.0)
+	_btn_turn_right.button_up.connect(func(): _ui_turn = 0.0)
+	_btn_turn_right.pressed.connect(func(): apply_turn_delta(-0.25))
+	_nav_container.add_child(_btn_turn_right)
+
+	_advance_btn = _btn_move_fwd
+	add_child(_nav_container)
 
 	# 5. Dig Bar
 	_dig_bar = ProgressBar.new()
@@ -427,16 +489,18 @@ func _update_ui_elements() -> void:
 
 	match story_phase:
 		"MurkWandering":
-			_advance_btn.visible = true
+			if _nav_container:
+				_nav_container.visible = true
 			_dig_bar.visible = false
 			_dig_left_btn.visible = false
 			_dig_right_btn.visible = false
 			_branch_panel.visible = false
 			var dist: int = int((1.0 - corridor_progress) * 50.0)
-			_status_label.text = "NATIVE 3D CORRIDOR // DISTANCE TO HAZARD: %dm" % dist
+			_status_label.text = "NATIVE 3D CORRIDOR // DISTANCE: %dm // WASD OR BUTTONS TO NAVIGATE" % dist
 			_status_label.modulate = Color(0.95, 0.75, 0.2, 1.0)
 		"TheDig":
-			_advance_btn.visible = false
+			if _nav_container:
+				_nav_container.visible = false
 			_dig_bar.visible = true
 			_dig_bar.value = dig_progress
 			if dig_state == "RockEncountered":
@@ -452,7 +516,8 @@ func _update_ui_elements() -> void:
 				_status_label.text = "NATIVE 3D DIG // EXCAVATION PROGRESS: %d%%" % int(dig_progress * 100.0)
 				_status_label.modulate = Color(0.95, 0.45, 0.1, 1.0)
 		"ToxicCollapse":
-			_advance_btn.visible = false
+			if _nav_container:
+				_nav_container.visible = false
 			_dig_bar.visible = false
 			_dig_left_btn.visible = false
 			_dig_right_btn.visible = false
@@ -462,7 +527,8 @@ func _update_ui_elements() -> void:
 			if _bedrock_mesh:
 				_bedrock_mesh.position.y = -2.0
 		_:
-			_advance_btn.visible = false
+			if _nav_container:
+				_nav_container.visible = false
 			_dig_bar.visible = false
 			_dig_left_btn.visible = false
 			_dig_right_btn.visible = false
@@ -502,6 +568,20 @@ func _on_advance_pressed(custom_step: float = 0.08) -> void:
 		_screen_shake = 2.5
 		action_requested.emit("player_move", {"step": custom_step})
 
+func _on_backtrack_pressed(custom_step: float = -0.08) -> void:
+	if story_phase == "MurkWandering":
+		if corridor_progress > 0.0:
+			_cam_bob += 0.8
+			_screen_shake = 2.0
+			action_requested.emit("player_move", {"step": custom_step})
+
+func _flush_pending_movement() -> void:
+	if abs(_pending_move_step) > 0.005 and story_phase == "MurkWandering":
+		_cam_bob += abs(_pending_move_step) * 12.0
+		action_requested.emit("player_move", {"step": _pending_move_step})
+		_pending_move_step = 0.0
+		_move_timer = 0.0
+
 func _perform_dig_strike(key: String = "A") -> void:
 	if story_phase == "TheDig" and dig_state == "Digging":
 		_shovel_swing_timer = 0.25
@@ -523,11 +603,22 @@ func _choose_branch(choice: String) -> void:
 func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree():
 		return
-	if event is InputEventKey and event.is_pressed() and not event.is_echo():
-		if story_phase == "MurkWandering":
-			if event.keycode == KEY_W or event.keycode == KEY_UP:
-				_on_advance_pressed()
-		elif story_phase == "TheDig":
+	if story_phase == "MurkWandering":
+		if event is InputEventKey:
+			var pressed: bool = event.is_pressed()
+			match event.keycode:
+				KEY_W, KEY_UP:
+					_key_w = pressed
+				KEY_S, KEY_DOWN:
+					_key_s = pressed
+				KEY_A, KEY_LEFT:
+					_key_a = pressed
+				KEY_D, KEY_RIGHT:
+					_key_d = pressed
+			if not pressed and not (_key_w or _key_s):
+				_flush_pending_movement()
+	elif story_phase == "TheDig":
+		if event is InputEventKey and event.is_pressed() and not event.is_echo():
 			if dig_state == "Digging":
 				if event.keycode == KEY_A or event.keycode == KEY_LEFT:
 					_perform_dig_strike("A")
@@ -554,9 +645,58 @@ func _process(delta: float) -> void:
 	if _spark_light and _spark_light.light_energy > 0.0:
 		_spark_light.light_energy = maxf(0.0, _spark_light.light_energy - delta * 15.0)
 
-	# Camera Positioning based on corridor progress
+	# MurkWandering: continuous turning and movement input
+	if story_phase == "MurkWandering":
+		# Yaw turning input
+		var turn_dir: float = 0.0
+		if _key_a:
+			turn_dir += 1.0
+		if _key_d:
+			turn_dir -= 1.0
+		turn_dir += _ui_turn
+		_turn_input = clampf(turn_dir, -1.0, 1.0)
+		if _turn_input != 0.0:
+			_camera_yaw += _turn_input * 1.8 * delta
+
+		# Locomotion along street
+		var move_dir: float = 0.0
+		if _key_w:
+			move_dir += 1.0
+		if _key_s:
+			move_dir -= 1.0
+		move_dir += _ui_move
+		_move_input = clampf(move_dir, -1.0, 1.0)
+
+		if _move_input != 0.0:
+			_move_timer += delta
+			var step_delta: float = _move_input * 0.08 * delta
+			var pot_prog: float = corridor_progress + _pending_move_step + step_delta
+
+			# Barricade obstacle check if moving forward
+			if step_delta > 0.0 and _has_active_barricade and !_barricade_breached:
+				var next_z: float = -50.0 * pot_prog
+				if next_z <= (_barricade_z + 1.5):
+					step_delta = 0.0
+					_status_label.text = "OBSTACLE: DARRAN'S BARRICADE (STRIKE TO BREACH)"
+					_status_label.modulate = Color(1.0, 0.4, 0.2, 1.0)
+
+			# Clamp lower bound at start of street
+			if pot_prog < 0.0:
+				step_delta = - (corridor_progress + _pending_move_step)
+
+			_pending_move_step += step_delta
+
+			if abs(_pending_move_step) >= 0.04 or (_move_timer >= 0.12 and abs(_pending_move_step) >= 0.015):
+				_flush_pending_movement()
+		else:
+			_move_timer = 0.0
+	elif story_phase == "TheDig":
+		_camera_yaw = lerpf(_camera_yaw, 0.0, delta * 6.0)
+
+	# Camera Positioning and Rotation
 	if _camera:
-		var target_z = -50.0 * corridor_progress
+		var cur_p: float = clampf(corridor_progress + _pending_move_step, 0.0, 1.0)
+		var target_z: float = -50.0 * cur_p
 		var shake_offset = Vector3(
 			sin(_anim_time * 40.0) * _screen_shake * 0.01,
 			cos(_anim_time * 35.0) * _screen_shake * 0.01,
@@ -564,6 +704,7 @@ func _process(delta: float) -> void:
 		)
 		var bob_y = sin(_cam_bob * 3.14) * 0.06
 		_camera.position = Vector3(0.0, 1.6 + bob_y, target_z) + shake_offset
+		_camera.rotation = Vector3(0.0, _camera_yaw, 0.0)
 
 		# Josiah H Foray Proximity Encounter (Strictly Clone >= 4)
 		if clone_number >= 4 and _josiah_node and !_josiah_encountered and story_phase == "MurkWandering":
@@ -578,10 +719,12 @@ func _process(delta: float) -> void:
 					_status_label.modulate = Color(0.35, 0.95, 0.65, 1.0)
 				action_requested.emit("encounter_dialogue", {"character": "Josiah H Foray"})
 
-	# Shovel Bob and Swing Animation
+	# Shovel Bob, Swing and Inertial Lag Animation
 	if _spade_rig:
 		var swing_angle = sin((0.25 - _shovel_swing_timer) / 0.25 * PI) * 45.0 if _shovel_swing_timer > 0.0 else 0.0
-		_spade_rig.rotation_degrees = Vector3(-swing_angle, 0.0, 0.0)
+		var target_spade_rot_y = -_turn_input * 0.14
+		_spade_inertial_rot_y = lerpf(_spade_inertial_rot_y, target_spade_rot_y, delta * 10.0)
+		_spade_rig.rotation = Vector3(deg_to_rad(-swing_angle), _spade_inertial_rot_y, 0.0)
 
 	# Crude Oil Rising during Toxic Collapse
 	if _oil_plane:
