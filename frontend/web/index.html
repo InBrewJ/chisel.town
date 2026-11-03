@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chisel Town 1855 - Darran Hollus Surveillance Terminal</title>
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --panel-bg: #111622;
+            --panel-header: #161f30;
+            --border-color: #26354a;
+            --cyan-accent: #00f0ff;
+            --amber-accent: #ffaa00;
+            --green-live: #00ff66;
+            --danger-red: #ff3344;
+            --text-dim: #7e95b0;
+            --text-bright: #dce7f5;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-bright);
+            font-family: 'Consolas', 'Courier New', monospace;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+        }
+
+        /* Top Header */
+        #header-bar {
+            height: 44px;
+            background: var(--panel-header);
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            font-size: 13px;
+            letter-spacing: 1px;
+            flex-shrink: 0;
+        }
+
+        .title-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sys-id {
+            color: var(--cyan-accent);
+            font-weight: bold;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            background: rgba(0, 255, 102, 0.1);
+            color: var(--green-live);
+            border: 1px solid var(--green-live);
+        }
+
+        .status-badge.connecting {
+            background: rgba(255, 170, 0, 0.1);
+            color: var(--amber-accent);
+            border-color: var(--amber-accent);
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 1.2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.3; transform: scale(0.85); }
+        }
+
+        /* Main Workspace: Viewport + Sidebar */
+        #main-workspace {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            min-height: 0;
+            background: #06090e;
+        }
+
+        /* Left: Viewport Area */
+        #viewport-container {
+            position: relative;
+            background: radial-gradient(circle at center, #0a111c 0%, #05080d 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-right: 1px solid var(--border-color);
+        }
+
+        #iso-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* CRT Scanline Effect */
+        #viewport-container::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 3px, 6px 100%;
+            pointer-events: none;
+        }
+
+        /* Subterranean Audio Subtitles */
+        #audio-subtitles {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(11, 16, 25, 0.88);
+            border: 1px solid var(--border-color);
+            border-left: 3px solid var(--cyan-accent);
+            padding: 10px 16px;
+            font-size: 12px;
+            color: var(--text-bright);
+            backdrop-filter: blur(4px);
+            z-index: 10;
+        }
+
+        #audio-subtitles .sub-label {
+            color: var(--text-dim);
+            font-size: 10px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        #audio-subtitles .sub-quote {
+            color: var(--cyan-accent);
+            font-style: italic;
+        }
+
+        /* Right: Surveillance Telemetry Sidebar */
+        #sidebar {
+            background: var(--panel-bg);
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+            border-left: 1px solid var(--border-color);
+        }
+
+        .panel-box {
+            background: #0d131f;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 14px;
+        }
+
+        .panel-header {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--cyan-accent);
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .stat-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .stat-label {
+            color: var(--text-dim);
+        }
+
+        .stat-val {
+            font-weight: bold;
+        }
+
+        .stat-bar {
+            width: 100%;
+            height: 6px;
+            background: #1a2536;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 4px;
+            margin-bottom: 10px;
+        }
+
+        .stat-bar-fill {
+            height: 100%;
+            background: var(--cyan-accent);
+            transition: width 0.3s ease;
+        }
+
+        .feed-text {
+            font-size: 12px;
+            color: #b0c4de;
+            line-height: 1.45;
+            background: #090e17;
+            padding: 10px;
+            border-left: 2px solid var(--amber-accent);
+            border-radius: 2px;
+        }
+
+        /* Bottom Timeline Bar */
+        #timeline-bar {
+            height: 48px;
+            background: var(--panel-header);
+            border-top: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .timeline-steps {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .phase-step {
+            padding: 3px 8px;
+            border-radius: 3px;
+            background: #0e1522;
+            color: var(--text-dim);
+            border: 1px solid #1e2c40;
+            font-size: 11px;
+            transition: all 0.3s ease;
+        }
+
+        .phase-step.active {
+            background: rgba(0, 240, 255, 0.15);
+            color: var(--cyan-accent);
+            border-color: var(--cyan-accent);
+            box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+        }
+
+        /* Loading / Reconnecting Overlay */
+        #connect-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(6, 9, 14, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            backdrop-filter: blur(4px);
+            transition: opacity 0.4s ease;
+        }
+
+        #connect-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .overlay-box {
+            background: #0f1724;
+            border: 1px solid var(--cyan-accent);
+            padding: 24px 36px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.2);
+            border-radius: 4px;
+            max-width: 480px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Header -->
+    <div id="header-bar">
+        <div class="title-group">
+            <span class="sys-id">[CHISEL TOWN 1855]</span>
+            <span>TERRARIUM SURVEILLANCE // TERMINAL A-12</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div id="status-badge" class="status-badge connecting">
+                <span class="pulse-dot"></span>
+                <span id="status-text">CONNECTING TO /ws</span>
+            </div>
+            <span style="color: var(--text-dim);">OPERATOR: DARRAN HOLLUS [ACTIVE]</span>
+        </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div id="main-workspace">
+        <!-- Isometric Viewport -->
+        <div id="viewport-container">
+            <canvas id="iso-canvas"></canvas>
+
+            <div id="audio-subtitles">
+                <div class="sub-label">Subterranean Hydrophone Pickup // Hydro-04 (Murk Depth):</div>
+                <div id="sub-quote-text" class="sub-quote">"Initializing hydrophone sensors..."</div>
+            </div>
+
+            <!-- Connection Splash Overlay -->
+            <div id="connect-overlay">
+                <div class="overlay-box">
+                    <h3 style="color: var(--amber-accent); margin-bottom: 10px; font-size: 16px;">SURVEILLANCE FEED INITIALIZING</h3>
+                    <p id="connect-desc" style="color: var(--text-dim); font-size: 12px; margin-bottom: 14px;">
+                        Connecting to telemetry stream on <code>/ws</code>...
+                    </p>
+                    <div style="width: 100%; height: 4px; background: #162233; border-radius: 2px; overflow: hidden;">
+                        <div style="width: 50%; height: 100%; background: var(--cyan-accent); animation: pulse 1s infinite alternate;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Telemetry Sidebar -->
+        <div id="sidebar">
+            <!-- Vitals -->
+            <div class="panel-box">
+                <div class="panel-header">
+                    <span>EXPERIMENTAL VITALS</span>
+                    <span id="subject-id" style="color: #58a6ff;">CARL 01</span>
+                </div>
+                
+                <div class="stat-row">
+                    <span class="stat-label">Town Cohesion:</span>
+                    <span id="val-cohesion" class="stat-val" style="color: var(--green-live);">90.0%</span>
+                </div>
+                <div class="stat-bar"><div id="bar-cohesion" class="stat-bar-fill" style="width: 90%;"></div></div>
+
+                <div class="stat-row">
+                    <span class="stat-label">Carl 01 Paranoia:</span>
+                    <span id="val-paranoia" class="stat-val" style="color: var(--cyan-accent);">15.0%</span>
+                </div>
+                <div class="stat-bar"><div id="bar-paranoia" class="stat-bar-fill" style="width: 15%; background: var(--cyan-accent);"></div></div>
+
+                <div class="stat-row">
+                    <span class="stat-label">Subterranean Pressure:</span>
+                    <span id="val-pressure" class="stat-val" style="color: var(--amber-accent);">2.10 MPa</span>
+                </div>
+                <div class="stat-bar"><div id="bar-pressure" class="stat-bar-fill" style="width: 40%; background: var(--amber-accent);"></div></div>
+            </div>
+
+            <!-- Relay -->
+            <div class="panel-box">
+                <div class="panel-header">RELAY: BOB SWEENEY (CABIN 01)</div>
+                <div id="feed-bob" class="feed-text">
+                    "Decanting cycle complete. Clone 01 stabilized."
+                </div>
+            </div>
+
+            <!-- Chronicler Log -->
+            <div class="panel-box">
+                <div class="panel-header">CHRONICLER LOG // DARRAN HOLLUS</div>
+                <div id="feed-chronicler" class="feed-text" style="border-left-color: var(--cyan-accent);">
+                    "The optimizer is only as good as its input statistics. We alter the nurture until the outcome inverts."
+                </div>
+            </div>
+
+            <!-- System Spec Details -->
+            <div class="panel-box" style="margin-top: auto; font-size: 11px; color: var(--text-dim); line-height: 1.4;">
+                <div>MODE: OBSERVATION ONLY (ISOLATION)</div>
+                <div>MORPHOLOGY: 1855 SWARM LATTICE</div>
+                <div>RENDERER: GL COMPATIBILITY (2:1 ISO)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Timeline Bar -->
+    <div id="timeline-bar">
+        <div class="timeline-steps">
+            <span style="color: var(--cyan-accent); font-weight: bold;">TIMELINE (3:00 ARC):</span>
+            <span id="step-decanting" class="phase-step active">[00:00] Decanting</span>
+            <span>➔</span>
+            <span id="step-wandering" class="phase-step">[01:15] Murk Wandering</span>
+            <span>➔</span>
+            <span id="step-dig" class="phase-step">[02:20] The Dig</span>
+            <span>➔</span>
+            <span id="step-collapse" class="phase-step">[03:00] Toxic Collapse & Reset</span>
+        </div>
+        <div style="font-weight: bold;">
+            ELAPSED: <span id="val-elapsed" style="color: var(--cyan-accent);">00:00</span> / 03:00
+        </div>
+    </div>
+
+    <script src="index.js"></script>
+</body>
+</html>

@@ -12,150 +12,17 @@ COPY docker/nginx.conf /etc/nginx/nginx.conf
 # Setup web assets directory
 WORKDIR /usr/share/nginx/html
 
-# 1. HTML5 surveillance terminal shell for Darran Hollus (gl_compatibility WASM shell)
-RUN cat <<'EOF' > /usr/share/nginx/html/index.html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chisel Town 1855 - Surveillance Feed</title>
-    <style>
-        :root {
-            --bg-color: #0b0f14;
-            --text-color: #00ffcc;
-            --accent-color: #ffaa00;
-            --dim-color: #4a6b82;
-            --danger-color: #ff3344;
-        }
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: 'Courier New', Courier, monospace;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            width: 100vw;
-        }
-        #header-bar {
-            height: 40px;
-            background: #111a24;
-            border-bottom: 2px solid var(--text-color);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 16px;
-            font-weight: bold;
-            font-size: 13px;
-            letter-spacing: 1px;
-        }
-        .live-badge {
-            color: #00ff66;
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.3; }
-            100% { opacity: 1; }
-        }
-        #canvas-container {
-            flex: 1;
-            position: relative;
-            background: #06090c;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        #canvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-        #status-overlay {
-            position: absolute;
-            background: rgba(11, 15, 20, 0.92);
-            border: 1px solid var(--text-color);
-            padding: 24px 32px;
-            text-align: center;
-            max-width: 600px;
-            box-shadow: 0 0 24px rgba(0, 255, 204, 0.25);
-        }
-        #status-overlay h2 {
-            margin-bottom: 12px;
-            color: var(--accent-color);
-            font-size: 18px;
-            letter-spacing: 1px;
-        }
-        #status-overlay p {
-            color: var(--dim-color);
-            font-size: 13px;
-            line-height: 1.5;
-            margin-bottom: 16px;
-        }
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: #1a2634;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 10px;
-        }
-        .progress-fill {
-            height: 100%;
-            width: 100%;
-            background: var(--text-color);
-            animation: loading 2s infinite ease-in-out;
-        }
-        @keyframes loading {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-    </style>
-</head>
-<body>
-    <div id="header-bar">
-        <span>CHISEL TOWN 1855 // TERRARIUM SURVEILLANCE // TERMINAL A-12</span>
-        <span class="live-badge">● FEED: LIVE</span>
-        <span>OPERATOR: DARRAN HOLLUS [ACTIVE]</span>
-    </div>
-    <div id="canvas-container">
-        <canvas id="canvas" tabindex="0"></canvas>
-        <div id="status-overlay">
-            <h2>SURVEILLANCE FEED INITIALIZED</h2>
-            <p>Darran Hollus Terrarium Surveillance Terminal. Connecting to telemetry stream at <code>/ws</code>...</p>
-            <div class="progress-bar"><div class="progress-fill"></div></div>
-        </div>
-    </div>
-    <script src="index.js"></script>
-</body>
-</html>
-EOF
+# Copy full HTML5 surveillance terminal web application & engine
+COPY frontend/web/ /usr/share/nginx/html/
 
-# 2. Godot 4 Web engine loader script (index.js)
-RUN cat <<'EOF' > /usr/share/nginx/html/index.js
-// Chisel Town 1855 - Godot Web WASM Engine Loader
-console.log("[Chisel Town 1855] Initializing Darran Hollus Surveillance Terminal Web Shell...");
-window.addEventListener("DOMContentLoaded", () => {
-    const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsHost = window.location.hostname === "chisel.town" || window.location.hostname.endsWith(".chisel.town")
-        ? "bob.chisel.town"
-        : window.location.host;
-    const wsUrl = `${wsProto}//${wsHost}/ws`;
-    console.log(`[Chisel Town 1855] Target telemetry WebSocket: ${wsUrl}`);
-});
-EOF
+# Optional Godot export bundle if present in docker/web_export/
+COPY docker/web_export/ /usr/share/nginx/html/
 
-# 3. Godot WebAssembly binary file (index.wasm) with valid WASM magic header (\0asm\x01\x00\x00\x00)
-RUN printf '\x00\x61\x73\x6d\x01\x00\x00\x00' > /usr/share/nginx/html/index.wasm
+# Godot WebAssembly binary file (index.wasm) with valid WASM magic header (\0asm\x01\x00\x00\x00)
+RUN [ -f /usr/share/nginx/html/index.wasm ] || printf '\x00\x61\x73\x6d\x01\x00\x00\x00' > /usr/share/nginx/html/index.wasm
 
-# 4. Godot package archive file (index.pck) with valid Godot PCK magic header (GDPC)
-RUN printf 'GDPC\x02\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00' > /usr/share/nginx/html/index.pck
+# Godot package archive file (index.pck) with valid Godot PCK magic header (GDPC)
+RUN [ -f /usr/share/nginx/html/index.pck ] || printf 'GDPC\x02\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00' > /usr/share/nginx/html/index.pck
 
 EXPOSE 80
 
