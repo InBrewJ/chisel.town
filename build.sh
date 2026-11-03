@@ -36,7 +36,9 @@ echo -e "${GREEN}✅ Backend compiled successfully.${NC}"
 if [ -f "frontend/export_presets.cfg" ]; then
     if [ -x "$GODOT_BIN" ]; then
         echo -e "${BLUE}==> Exporting Godot frontend assets using ${GODOT_BIN}...${NC}"
-        "$GODOT_BIN" --headless --path frontend/ --export-release "Web" ../docker/web_export/index.html || true
+        mkdir -p docker/web_export
+        "$GODOT_BIN" --headless --path frontend/ --export-release "Web" "$(pwd)/docker/web_export/index.html"
+        echo -e "${GREEN}✅ Godot WebAssembly assets exported successfully.${NC}"
     else
         echo -e "${YELLOW}⚠️ Notice: Godot binary not found at ${GODOT_BIN}; skipping export.${NC}"
     fi

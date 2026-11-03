@@ -12,17 +12,8 @@ COPY docker/nginx.conf /etc/nginx/nginx.conf
 # Setup web assets directory
 WORKDIR /usr/share/nginx/html
 
-# Copy full HTML5 surveillance terminal web application & engine
-COPY frontend/web/ /usr/share/nginx/html/
-
-# Optional Godot export bundle if present in docker/web_export/
+# Copy Godot 4 WebAssembly export bundle (index.html, index.js, index.wasm, index.pck)
 COPY docker/web_export/ /usr/share/nginx/html/
-
-# Godot WebAssembly binary file (index.wasm) with valid WASM magic header (\0asm\x01\x00\x00\x00)
-RUN [ -f /usr/share/nginx/html/index.wasm ] || printf '\x00\x61\x73\x6d\x01\x00\x00\x00' > /usr/share/nginx/html/index.wasm
-
-# Godot package archive file (index.pck) with valid Godot PCK magic header (GDPC)
-RUN [ -f /usr/share/nginx/html/index.pck ] || printf 'GDPC\x02\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00' > /usr/share/nginx/html/index.pck
 
 EXPOSE 80
 
