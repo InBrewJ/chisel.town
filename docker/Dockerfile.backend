@@ -1,0 +1,48 @@
+# ==============================================================================
+# Stage 1: Build the Rust backend binary
+# ==============================================================================
+FROM rust:1-slim AS builder
+
+WORKDIR /usr/src/app
+
+# Pre-copy manifests for dependency layer caching
+COPY backend/Cargo.toml backend/Cargo.lock ./backend/
+
+# Copy backend source code and test files
+COPY backend/src ./backend/src
+COPY backend/tests ./backend/tests
+
+WORKDIR /usr/src/app/backend
+
+# Build release binary for chisel-server
+RUN cargo build --release --locked --bin chisel-server
+
+# ==============================================================================
+# Stage 2: Minimal runtime image
+# ==============================================================================
+FROM debian:bookworm-slim AS runner
+
+# Install TLS certificates and curl for health check probing
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Run as dedicated unprivileged user for container security
+RUN useradd -u 10001 -m -d /app chisel \
+    && mkdir -p /app \
+    && chown -R chisel:chisel /app
+
+WORKDIR /app
+
+# Copy the compiled binary from builder stage
+COPY --from=builder --chown=chisel:chisel /usr/src/app/backend/target/release/chisel-server /usr/local/bin/chisel-server
+
+USER chisel
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
+    CMD curl -f http://127.0.0.1:8080/health || exit 1
+
+ENTRYPOINT ["/usr/local/bin/chisel-server"]

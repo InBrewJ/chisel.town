@@ -1,0 +1,30 @@
+services:
+  backend:
+    container_name: chisel-backend
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    ports:
+      - "7770:8080"
+    restart: unless-stopped
+    environment:
+      - RUST_LOG=info
+    networks:
+      - chisel-net
+
+  frontend:
+    container_name: chisel-frontend
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    ports:
+      - "7771:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - chisel-net
+
+networks:
+  chisel-net:
+    driver: bridge
