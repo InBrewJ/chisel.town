@@ -44,6 +44,9 @@ func connect_to_server() -> void:
 		return
 	
 	_ws = WebSocketPeer.new()
+	_ws.inbound_buffer_size = 1048576
+	_ws.outbound_buffer_size = 1048576
+	_ws.max_queued_packets = 2048
 	_active_url = resolve_server_url()
 	print("[NetworkClient] Initiating connection to: ", _active_url)
 	var err = _ws.connect_to_url(_active_url)

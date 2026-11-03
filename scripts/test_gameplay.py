@@ -65,6 +65,12 @@ class CDPClient:
         while True:
             raw = await self.ws.recv()
             data = json.loads(raw)
+            if data.get("method") == "Runtime.consoleAPICalled":
+                args = data.get("params", {}).get("args", [])
+                text = " ".join([str(a.get("value", a.get("description", ""))) for a in args])
+                print(f"[Browser Console] {text}")
+            elif data.get("method") == "Runtime.exceptionThrown":
+                print(f"[Browser Exception] {data}")
             if data.get("id") == msg_id:
                 return data.get("result", {})
 
@@ -128,7 +134,7 @@ async def main():
 
             print("[Game Engine] Waiting for Godot 4.7 Web engine to load and connect...")
             loaded = False
-            for attempt in range(40):
+            for attempt in range(60):
                 ready = await cdp.eval_js("Boolean(window.chiselReady)")
                 if ready:
                     loaded = True
@@ -136,7 +142,7 @@ async def main():
                 await asyncio.sleep(0.5)
 
             if not loaded:
-                print("⚠️ Warning: window.chiselReady timed out; checking canvas existence...")
+                raise RuntimeError("Godot Web engine failed to initialize window.chiselReady within 30s")
 
             await asyncio.sleep(1.0)
 
@@ -168,14 +174,22 @@ async def main():
             print("[Action] Turning view to inspect left facades (A / LEFT)...")
             await cdp.eval_js("window.chiselAction && window.chiselAction('player_turn', 0.65)")
             await asyncio.sleep(0.3)
-            yaw_left = await cdp.eval_js("Number(window.chiselCameraYaw)")
+            yaw_left = float(await cdp.eval_js("window.chiselCameraYaw || 0.0"))
             print(f"[Look Left] Camera Yaw={yaw_left:.3f} rad")
             await cdp.capture_screenshot("02b_corridor_turned_left_3d.png")
+
+            # Test moving towards new heading
+            print("[Action] Stepping forward toward left heading (W)...")
+            x_before = float(await cdp.eval_js("window.chiselPlayerX || 0.0"))
+            await cdp.eval_js("window.chiselAction && window.chiselAction('player_move', 0.05)")
+            await asyncio.sleep(0.3)
+            x_after = float(await cdp.eval_js("window.chiselPlayerX || 0.0"))
+            print(f"[Heading Locomotion] Player X: {x_before:.2f} -> {x_after:.2f} (walked toward facing heading)")
 
             print("[Action] Turning view to inspect right facades (D / RIGHT)...")
             await cdp.eval_js("window.chiselAction && window.chiselAction('player_turn', -1.30)")
             await asyncio.sleep(0.3)
-            yaw_right = await cdp.eval_js("Number(window.chiselCameraYaw)")
+            yaw_right = float(await cdp.eval_js("window.chiselCameraYaw || 0.0"))
             print(f"[Look Right] Camera Yaw={yaw_right:.3f} rad")
             await cdp.capture_screenshot("02c_corridor_turned_right_3d.png")
 
@@ -207,10 +221,11 @@ async def main():
                 await cdp.eval_js("window.chiselAction && window.chiselAction('player_move', 0.20)")
                 await asyncio.sleep(0.3)
 
-            for _ in range(20):
+            for _ in range(25):
                 phase = await cdp.eval_js("window.chiselPhase")
                 if phase == "TheDig":
                     break
+                await cdp.eval_js("window.chiselAction && window.chiselAction('player_move', 0.15)")
                 await asyncio.sleep(0.2)
 
             # --- Phase 2: 3D Bedrock Dig ---

@@ -43,7 +43,8 @@ var _dig_right_btn: Button = null
 var _branch_panel: PanelContainer = null
 var _vignette_rect: ColorRect = null
 
-# Interactive Look & Locomotion State
+# Interactive Look & 3D Locomotion State
+var _player_pos: Vector3 = Vector3(0.0, 1.6, 0.0)
 var _camera_yaw: float = 0.0
 var _turn_input: float = 0.0
 var _move_input: float = 0.0
@@ -53,19 +54,20 @@ var _key_w: bool = false
 var _key_s: bool = false
 var _key_a: bool = false
 var _key_d: bool = false
-var _pending_move_step: float = 0.0
-var _move_timer: float = 0.0
+var _last_synced_progress: float = 0.0
+var _sync_timer: float = 0.0
 var _spade_inertial_rot_y: float = 0.0
 
 # Animation Variables
 var _anim_time: float = 0.0
-var _cam_bob: float = 0.0
+var _bob_cycle: float = 0.0
 var _shovel_swing_timer: float = 0.0
 var _screen_shake: float = 0.0
 var _barricade_health: float = 3.0
 var _barricade_breached: bool = false
 var _has_active_barricade: bool = false
 var _barricade_z: float = -11.0
+var _barricade_strike_cooldown: float = 0.0
 
 # Corridor Plot Z Coordinates (0 to -50m)
 const PLOT_Z = [-11.0, -22.0, -33.0, -44.0]
@@ -77,6 +79,9 @@ func _init() -> void:
 
 func get_camera_yaw() -> float:
 	return _camera_yaw
+
+func get_player_pos() -> Vector3:
+	return _player_pos
 
 func apply_turn_delta(delta_yaw: float) -> void:
 	_camera_yaw += delta_yaw
@@ -461,9 +466,19 @@ func _setup_ui_overlays() -> void:
 
 func update_carl_state(state: Dictionary) -> void:
 	if state.has("phase"):
+		var prev_phase = story_phase
 		story_phase = str(state["phase"])
+		if prev_phase != story_phase and story_phase == "Decanting":
+			_player_pos = Vector3(0.0, 1.6, 0.0)
+			_last_synced_progress = 0.0
+			_camera_yaw = 0.0
+			_barricade_health = 3.0
+			_barricade_breached = false
 	if state.has("carl_corridor_progress"):
 		corridor_progress = float(state["carl_corridor_progress"])
+		if abs(corridor_progress - _last_synced_progress) > 0.35 and abs(_move_input) < 0.01:
+			_player_pos.z = -50.0 * corridor_progress
+			_last_synced_progress = corridor_progress
 	if state.has("dig_progress"):
 		dig_progress = float(state["dig_progress"])
 	if state.has("dig_state"):
@@ -536,51 +551,74 @@ func _update_ui_elements() -> void:
 			if _bedrock_mesh:
 				_bedrock_mesh.position.y = 3.0
 
+func _handle_barricade_strike(force: bool = false) -> void:
+	if force or _barricade_strike_cooldown <= 0.0:
+		_barricade_strike_cooldown = 0.15
+		_shovel_swing_timer = 0.25
+		_screen_shake = 5.0
+		_barricade_health -= 1.0
+		if _spark_light:
+			_spark_light.position = Vector3(0.0, 1.2, _barricade_z + 0.6)
+			_spark_light.light_energy = 3.5
+		if _barricade_health > 0.0:
+			_status_label.text = "OBSTACLE: DARRAN'S BARRICADE (STRIKES: %d/3)" % int(_barricade_health)
+			_status_label.modulate = Color(1.0, 0.4, 0.2, 1.0)
+			_subtitle_label.text = '[CARL C-%02d]: "Father threw an iron barricade across the avenue! Strike it to break through!"' % clone_number
+		else:
+			_barricade_breached = true
+			if _barricade_root:
+				_barricade_root.visible = false
+			_status_label.text = "BARRICADE BREACHED // ADVANCING TO BEDROCK"
+			_status_label.modulate = Color(0.35, 0.95, 0.55, 1.0)
+			_subtitle_label.text = '[CARL C-%02d]: "The iron collapsed... nothing stops the descent."' % clone_number
+
 func _on_advance_pressed(custom_step: float = 0.08) -> void:
 	if story_phase == "MurkWandering":
-		# Check if blocked by containment barricade
-		var next_z = -50.0 * (corridor_progress + custom_step)
-		if _has_active_barricade and !_barricade_breached and next_z <= (_barricade_z + 1.5):
-			# Carl strikes the barricade with the 3D spade!
-			_cam_bob += 0.5
-			_shovel_swing_timer = 0.25
-			_screen_shake = 6.0
-			_barricade_health -= 1.0
-			if _spark_light:
-				_spark_light.position = Vector3(0.0, 1.2, _barricade_z + 0.6)
-				_spark_light.light_energy = 3.5
-			if _barricade_health > 0.0:
-				_status_label.text = "OBSTACLE: DARRAN'S BARRICADE (STRIKES: %d/3)" % int(_barricade_health)
-				_status_label.modulate = Color(1.0, 0.4, 0.2, 1.0)
-				_subtitle_label.text = '[CARL C-%02d]: "Father threw an iron barricade across the avenue! Strike it to break through!"' % clone_number
-				return
-			else:
-				_barricade_breached = true
-				if _barricade_root:
-					_barricade_root.visible = false
-				_status_label.text = "BARRICADE BREACHED // ADVANCING TO BEDROCK"
-				_status_label.modulate = Color(0.35, 0.95, 0.55, 1.0)
-				_subtitle_label.text = '[CARL C-%02d]: "The iron collapsed... nothing stops the descent."' % clone_number
-				action_requested.emit("player_move", {"step": custom_step})
-				return
-
-		_cam_bob += 1.0
-		_screen_shake = 2.5
-		action_requested.emit("player_move", {"step": custom_step})
+		var forward = Vector3(-sin(_camera_yaw), 0.0, -cos(_camera_yaw)).normalized()
+		var move_dist = custom_step * 50.0
+		var next_pos = _player_pos + forward * move_dist
+		next_pos.x = clampf(next_pos.x, -3.7, 3.7)
+		next_pos.z = minf(next_pos.z, 0.5)
+		if _has_active_barricade and !_barricade_breached:
+			if _player_pos.z >= _barricade_z and next_pos.z <= (_barricade_z + 1.2):
+				_handle_barricade_strike(true)
+				if !_barricade_breached:
+					next_pos.z = _barricade_z + 1.2
+		next_pos.z = maxf(next_pos.z, -49.5)
+		_player_pos = next_pos
+		_bob_cycle += 1.2
+		var current_calc_progress = clampf(-_player_pos.z / 48.0, 0.0, 1.0)
+		var step_diff = current_calc_progress - _last_synced_progress
+		if abs(step_diff) > 0.001:
+			action_requested.emit("player_move", {"step": step_diff})
+			_last_synced_progress = current_calc_progress
 
 func _on_backtrack_pressed(custom_step: float = -0.08) -> void:
 	if story_phase == "MurkWandering":
-		if corridor_progress > 0.0:
-			_cam_bob += 0.8
-			_screen_shake = 2.0
-			action_requested.emit("player_move", {"step": custom_step})
+		var forward = Vector3(-sin(_camera_yaw), 0.0, -cos(_camera_yaw)).normalized()
+		var move_dist = abs(custom_step) * 50.0
+		var next_pos = _player_pos - forward * move_dist
+		next_pos.x = clampf(next_pos.x, -3.7, 3.7)
+		next_pos.z = minf(next_pos.z, 0.5)
+		next_pos.z = maxf(next_pos.z, -49.5)
+		_player_pos = next_pos
+		_bob_cycle += 1.2
+		var current_calc_progress = clampf(-_player_pos.z / 48.0, 0.0, 1.0)
+		var step_diff = current_calc_progress - _last_synced_progress
+		if abs(step_diff) > 0.001:
+			action_requested.emit("player_move", {"step": step_diff})
+			_last_synced_progress = current_calc_progress
+
+func _flush_movement_sync() -> void:
+	if story_phase == "MurkWandering":
+		var current_calc_progress = clampf(-_player_pos.z / 48.0, 0.0, 1.0)
+		var step_diff = current_calc_progress - _last_synced_progress
+		if abs(step_diff) > 0.003:
+			action_requested.emit("player_move", {"step": step_diff})
+			_last_synced_progress = current_calc_progress
 
 func _flush_pending_movement() -> void:
-	if abs(_pending_move_step) > 0.005 and story_phase == "MurkWandering":
-		_cam_bob += abs(_pending_move_step) * 12.0
-		action_requested.emit("player_move", {"step": _pending_move_step})
-		_pending_move_step = 0.0
-		_move_timer = 0.0
+	_flush_movement_sync()
 
 func _perform_dig_strike(key: String = "A") -> void:
 	if story_phase == "TheDig" and dig_state == "Digging":
@@ -616,7 +654,7 @@ func _input(event: InputEvent) -> void:
 				KEY_D, KEY_RIGHT:
 					_key_d = pressed
 			if not pressed and not (_key_w or _key_s):
-				_flush_pending_movement()
+				_flush_movement_sync()
 	elif story_phase == "TheDig":
 		if event is InputEventKey and event.is_pressed() and not event.is_echo():
 			if dig_state == "Digging":
@@ -645,9 +683,13 @@ func _process(delta: float) -> void:
 	if _spark_light and _spark_light.light_energy > 0.0:
 		_spark_light.light_energy = maxf(0.0, _spark_light.light_energy - delta * 15.0)
 
-	# MurkWandering: continuous turning and movement input
+	# Barricade strike cooldown
+	if _barricade_strike_cooldown > 0.0:
+		_barricade_strike_cooldown = maxf(0.0, _barricade_strike_cooldown - delta)
+
+	# MurkWandering: continuous turning and standard WASD heading locomotion
 	if story_phase == "MurkWandering":
-		# Yaw turning input
+		# Yaw turning input (A/D rotates camera yaw)
 		var turn_dir: float = 0.0
 		if _key_a:
 			turn_dir += 1.0
@@ -658,7 +700,7 @@ func _process(delta: float) -> void:
 		if _turn_input != 0.0:
 			_camera_yaw += _turn_input * 1.8 * delta
 
-		# Locomotion along street
+		# Movement input (W/S moves along facing heading)
 		var move_dir: float = 0.0
 		if _key_w:
 			move_dir += 1.0
@@ -667,48 +709,62 @@ func _process(delta: float) -> void:
 		move_dir += _ui_move
 		_move_input = clampf(move_dir, -1.0, 1.0)
 
+		# Forward vector from current camera yaw heading
+		var forward = Vector3(-sin(_camera_yaw), 0.0, -cos(_camera_yaw)).normalized()
+
 		if _move_input != 0.0:
-			_move_timer += delta
-			var step_delta: float = _move_input * 0.08 * delta
-			var pot_prog: float = corridor_progress + _pending_move_step + step_delta
+			var walk_speed: float = 4.2 # meters per second
+			var move_delta: Vector3 = forward * (_move_input * walk_speed * delta)
+			var next_pos: Vector3 = _player_pos + move_delta
 
-			# Barricade obstacle check if moving forward
-			if step_delta > 0.0 and _has_active_barricade and !_barricade_breached:
-				var next_z: float = -50.0 * pot_prog
-				if next_z <= (_barricade_z + 1.5):
-					step_delta = 0.0
-					_status_label.text = "OBSTACLE: DARRAN'S BARRICADE (STRIKE TO BREACH)"
-					_status_label.modulate = Color(1.0, 0.4, 0.2, 1.0)
+			# 1. Lateral street boundary collision (sidewalks at +/- 3.7m)
+			next_pos.x = clampf(next_pos.x, -3.7, 3.7)
 
-			# Clamp lower bound at start of street
-			if pot_prog < 0.0:
-				step_delta = - (corridor_progress + _pending_move_step)
+			# 2. Starting boundary (cannot backtrack past Z = 0.5m)
+			next_pos.z = minf(next_pos.z, 0.5)
 
-			_pending_move_step += step_delta
+			# 3. Barricade obstacle collision (at Z = -11.0m)
+			if _has_active_barricade and !_barricade_breached:
+				if _player_pos.z >= _barricade_z and next_pos.z <= (_barricade_z + 1.2):
+					_handle_barricade_strike(false)
+					if !_barricade_breached:
+						next_pos.z = _barricade_z + 1.2
 
-			if abs(_pending_move_step) >= 0.04 or (_move_timer >= 0.12 and abs(_pending_move_step) >= 0.015):
-				_flush_pending_movement()
+			# 4. Bedrock end barrier (at Z = -49.5m)
+			next_pos.z = maxf(next_pos.z, -49.5)
+
+			_player_pos = next_pos
+			_bob_cycle += delta * 9.0
 		else:
-			_move_timer = 0.0
+			# Smoothly ease head bob to resting position
+			_bob_cycle = move_toward(_bob_cycle, round(_bob_cycle / PI) * PI, delta * 6.0)
+
+		# Sync progress to server smoothly without client position jumping
+		_sync_timer += delta
+		var current_calc_progress = clampf(-_player_pos.z / 48.0, 0.0, 1.0)
+		var step_diff = current_calc_progress - _last_synced_progress
+		if abs(step_diff) >= 0.025 or (_sync_timer >= 0.15 and abs(step_diff) >= 0.008) or (_move_input == 0.0 and abs(step_diff) > 0.003):
+			action_requested.emit("player_move", {"step": step_diff})
+			_last_synced_progress = current_calc_progress
+			_sync_timer = 0.0
 	elif story_phase == "TheDig":
 		_camera_yaw = lerpf(_camera_yaw, 0.0, delta * 6.0)
+		_player_pos = Vector3(0.0, 1.6, -49.5)
 
-	# Camera Positioning and Rotation
+	# Camera Positioning and Rotation: 100% locally driven, ZERO judder!
 	if _camera:
-		var cur_p: float = clampf(corridor_progress + _pending_move_step, 0.0, 1.0)
-		var target_z: float = -50.0 * cur_p
 		var shake_offset = Vector3(
 			sin(_anim_time * 40.0) * _screen_shake * 0.01,
 			cos(_anim_time * 35.0) * _screen_shake * 0.01,
 			0.0
 		)
-		var bob_y = sin(_cam_bob * 3.14) * 0.06
-		_camera.position = Vector3(0.0, 1.6 + bob_y, target_z) + shake_offset
+		var bob_y = sin(_bob_cycle) * 0.035
+		_camera.position = _player_pos + Vector3(0.0, bob_y, 0.0) + shake_offset
 		_camera.rotation = Vector3(0.0, _camera_yaw, 0.0)
 
 		# Josiah H Foray Proximity Encounter (Strictly Clone >= 4)
 		if clone_number >= 4 and _josiah_node and !_josiah_encountered and story_phase == "MurkWandering":
-			if abs(_camera.position.z - (-22.0)) < 3.8:
+			if _player_pos.distance_to(Vector3(3.6, 1.6, -22.0)) < 4.2 or abs(_player_pos.z - (-22.0)) < 3.8:
 				_josiah_encountered = true
 				var dialogue_text = "JOSIAH H FORAY: \"Tell me, are you unhoused? You seem to me like you could be a wretch. I have seen you everywhere, in every corner\" ... \"A wretch? Well perhaps, but I live over in the Bearing quarter with my dear mother, just until my own lodging at college is prepared, however outlandish that may seem\" ... \"what does that mean?\" ... \"It means unexpected, roguish\" ... \"Do I ... seem like a noble man to you?\""
 				active_subtitles = dialogue_text
