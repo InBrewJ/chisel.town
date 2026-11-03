@@ -119,6 +119,11 @@ func _setup_3d_environment() -> void:
 	_barricade_root = Node3D.new()
 	world.add_child(_barricade_root)
 
+	# Josiah H Foray Stick Figure (Stationed at Site 2, z = -22m)
+	_josiah_node = JosiahCharacter3D.new()
+	_josiah_node.position = Vector3(3.6, 0.0, -22.0)
+	world.add_child(_josiah_node)
+
 	# Bedrock Face (z = -50m)
 	_build_bedrock_face(world)
 
@@ -386,6 +391,8 @@ func update_carl_state(state: Dictionary) -> void:
 		active_subtitles = str(state["active_subtitles"])
 	if state.has("clone_number"):
 		clone_number = int(state["clone_number"])
+	if corridor_progress < 0.05 or story_phase == "Decanting":
+		_josiah_encountered = false
 	if state.has("town_buildings"):
 		var b_list = state["town_buildings"]
 		if typeof(b_list) == TYPE_ARRAY and b_list != town_buildings:
@@ -500,6 +507,19 @@ func _process(delta: float) -> void:
 		)
 		var bob_y = sin(_cam_bob * 3.14) * 0.06
 		_camera.position = Vector3(0.0, 1.6 + bob_y, target_z) + shake_offset
+
+		# Josiah H Foray Proximity Encounter (Clone >= 4 or when near z = -22m)
+		if _josiah_node and !_josiah_encountered and story_phase == "MurkWandering":
+			if abs(_camera.position.z - (-22.0)) < 3.8:
+				_josiah_encountered = true
+				var dialogue_text = "JOSIAH H FORAY: \"Tell me, are you unhoused? You seem to me like you could be a wretch. I have seen you everywhere, in every corner\" ... \"A wretch? Well perhaps, but I live over in the Bearing quarter with my dear mother, just until my own lodging at college is prepared, however outlandish that may seem\" ... \"what does that mean?\" ... \"It means unexpected, roguish\" ... \"Do I ... seem like a noble man to you?\""
+				active_subtitles = dialogue_text
+				if _subtitle_label:
+					_subtitle_label.text = dialogue_text
+				if _status_label:
+					_status_label.text = "ENCOUNTER: JOSIAH H FORAY // PARANOIA SUBSIDING"
+					_status_label.modulate = Color(0.35, 0.95, 0.65, 1.0)
+				action_requested.emit("encounter_dialogue", {"character": "Josiah H Foray"})
 
 	# Shovel Bob and Swing Animation
 	if _spade_rig:
