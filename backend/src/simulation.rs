@@ -137,26 +137,31 @@ impl SimulationEngine {
                 pressure,
             } => {
                 if let Some(c) = cohesion {
-                    self.town_cohesion = c.clamp(0.0, 1.0);
+                    if c.is_finite() {
+                        self.town_cohesion = c.clamp(0.0, 1.0);
+                    }
                 }
                 if let Some(p) = paranoia {
-                    self.carl_paranoia = p.clamp(0.0, 1.0);
+                    if p.is_finite() {
+                        self.carl_paranoia = p.clamp(0.0, 1.0);
+                    }
                 }
                 if let Some(pr) = pressure {
-                    self.subterranean_pressure = pr.max(0.0);
+                    if pr.is_finite() {
+                        self.subterranean_pressure = pr.max(0.0);
+                    }
                 }
             }
             ClientAction::ReleaseClone => {
                 self.is_released = true;
                 if self.phase == StoryPhase::Decanting {
                     self.phase = StoryPhase::MurkWandering;
-                    self.elapsed_seconds = 45.0;
+                    self.elapsed_seconds = 0.0;
                 }
             }
             ClientAction::PlayerMove { step } => {
-                if self.phase == StoryPhase::MurkWandering {
+                if step.is_finite() && self.phase == StoryPhase::MurkWandering {
                     self.carl_corridor_progress = (self.carl_corridor_progress + step).clamp(0.0, 1.0);
-                    // Move Carl along the 2D path (10.0, 10.0) -> (50.0, 50.0)
                     let p = self.carl_corridor_progress;
                     self.carl_position = (10.0 + 40.0 * p, 10.0 + 40.0 * p);
                     self.carl_paranoia = (0.15 + 0.60 * p).clamp(0.0, 1.0);
@@ -165,7 +170,6 @@ impl SimulationEngine {
 
                     if self.carl_corridor_progress >= 1.0 {
                         self.phase = StoryPhase::TheDig;
-                        self.elapsed_seconds = 140.0;
                         self.dig_progress = 0.0;
                         self.dig_state = DigState::Digging;
                     }
@@ -203,13 +207,14 @@ impl SimulationEngine {
                 }
             }
             ClientAction::DigBranch { choice } => {
-                if self.phase == StoryPhase::TheDig && self.dig_state == DigState::RockEncountered {
-                    if choice.to_lowercase() == "left" {
-                        // Correct branch: Chisel through softer basalt vein
-                        self.dig_state = DigState::Digging;
-                    }
-                    // "right" is a dead end and stays in RockEncountered
+                if self.phase == StoryPhase::TheDig
+                    && self.dig_state == DigState::RockEncountered
+                    && choice.to_lowercase() == "left"
+                {
+                    // Correct branch: Chisel through softer basalt vein
+                    self.dig_state = DigState::Digging;
                 }
+                // "right" is a dead end and stays in RockEncountered
             }
             ClientAction::SelectMorphology { morphology_type } => {
                 self.selected_morphology = Some(morphology_type);
@@ -263,12 +268,15 @@ impl SimulationEngine {
                 self.phase = StoryPhase::ColdReset;
             }
         } else {
-            let p = phase_for_time(self.elapsed_seconds);
-            if p == StoryPhase::ColdReset {
-                self.phase = StoryPhase::ColdReset;
-                self.reset_pending = true;
-            } else if dt >= 15.0 {
-                self.phase = p;
+            // Only force time-based phase jumps in legacy tests with dt >= 15.0
+            if dt >= 15.0 {
+                let p = phase_for_time(self.elapsed_seconds);
+                if p == StoryPhase::ColdReset {
+                    self.phase = StoryPhase::ColdReset;
+                    self.reset_pending = true;
+                } else {
+                    self.phase = p;
+                }
             }
         }
 

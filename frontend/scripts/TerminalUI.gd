@@ -195,6 +195,13 @@ func _setup_interactive_components() -> void:
 		btn_lab.pressed.connect(func(): _inject_morphology("Labyrinth Habitats"))
 		mvb.add_child(btn_lab)
 
+		var btn_release_c2 = Button.new()
+		btn_release_c2.name = "btn_release_c2"
+		btn_release_c2.text = "[DECANT & RELEASE CLONE 02]"
+		btn_release_c2.custom_minimum_size = Vector2(0, 32)
+		btn_release_c2.pressed.connect(_on_release_pressed)
+		mvb.add_child(btn_release_c2)
+
 		morphology_box.add_child(mvb)
 		morphology_box.visible = false
 		sidebar_vbox.add_child(morphology_box)
@@ -205,6 +212,11 @@ func _on_release_pressed() -> void:
 	if release_btn:
 		release_btn.disabled = true
 		release_btn.text = "[CLONE RELEASED // COMMENCING FIRST-PERSON EYE]"
+	if morphology_box:
+		var btn_c2 = morphology_box.find_child("btn_release_c2", true, false)
+		if btn_c2 and btn_c2 is Button:
+			btn_c2.disabled = true
+			btn_c2.text = "[CLONE RELEASED // COMMENCING FIRST-PERSON EYE]"
 
 func _on_slider_changed(_val: float) -> void:
 	if network_client and cohesion_slider and paranoia_slider and pressure_slider:
@@ -305,17 +317,25 @@ func _on_state_updated(state: Dictionary) -> void:
 			viewport.update_world_state(state)
 		if carl_view:
 			carl_view.visible = false
-		if darran_controls_box:
-			darran_controls_box.visible = true
-			if release_btn:
-				release_btn.disabled = false
-				release_btn.text = "[DECANT & RELEASE CLONE %02d]" % clone_num
-
 		if clone_num > 1:
 			if operator_badge:
 				operator_badge.text = "DARRAN HOLLUS [CYCLE %02d: PLANNING]" % clone_num
 			if morphology_box:
 				morphology_box.visible = true
+				var btn_c2 = morphology_box.find_child("btn_release_c2", true, false)
+				if btn_c2 and btn_c2 is Button:
+					btn_c2.disabled = false
+					btn_c2.text = "[DECANT & RELEASE CLONE %02d]" % clone_num
+			if darran_controls_box:
+				darran_controls_box.visible = false
+		else:
+			if morphology_box:
+				morphology_box.visible = false
+			if darran_controls_box:
+				darran_controls_box.visible = true
+				if release_btn:
+					release_btn.disabled = false
+					release_btn.text = "[DECANT & RELEASE CLONE %02d]" % clone_num
 	
 	# Update bridge telemetry safely at end of state update
 	if Engine.has_singleton("JavaScriptBridge"):

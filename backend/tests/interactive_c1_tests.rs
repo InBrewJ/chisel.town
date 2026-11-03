@@ -111,3 +111,51 @@ fn test_dig_minigame_bedrock_choice_and_collapse() {
     assert_eq!(state.phase, StoryPhase::Decanting);
     assert!(!state.available_morphologies.is_empty());
 }
+
+#[test]
+fn test_nan_float_inputs_do_not_panic() {
+    let mut engine = SimulationEngine::new();
+    // Passing NaN should safely be ignored rather than panicking on clamp
+    engine.handle_action(ClientAction::TuneParameters {
+        cohesion: Some(f32::NAN),
+        paranoia: Some(f32::INFINITY),
+        pressure: Some(f32::NEG_INFINITY),
+    });
+    let state = engine.current_state();
+    assert!(!state.town_cohesion.is_nan());
+    assert!(!state.carl_paranoia.is_nan());
+    assert!(!state.subterranean_pressure.is_nan());
+
+    engine.handle_action(ClientAction::PlayerMove { step: f32::NAN });
+    let state = engine.current_state();
+    assert!(!state.carl_corridor_progress.is_nan());
+}
+
+#[test]
+fn test_decanting_elapsed_seconds_increments_while_phase_stays_decanting() {
+    let mut engine = SimulationEngine::new();
+    assert_eq!(engine.phase(), StoryPhase::Decanting);
+    let mut prev_time = 0.0;
+    for _ in 0..50 {
+        let state = engine.tick(0.1);
+        assert_eq!(state.phase, StoryPhase::Decanting);
+        assert!(state.elapsed_seconds > prev_time);
+        prev_time = state.elapsed_seconds;
+    }
+}
+
+#[test]
+fn test_interactive_mode_does_not_expire_at_180s() {
+    let mut engine = SimulationEngine::new();
+    engine.handle_action(ClientAction::ReleaseClone);
+    engine.tick(0.1);
+    assert_eq!(engine.phase(), StoryPhase::MurkWandering);
+
+    // Player takes their time (e.g. 300 seconds exploring corridor)
+    for _ in 0..3000 {
+        let state = engine.tick(0.1);
+        // Should remain in MurkWandering until player actually advances to dig
+        assert_eq!(state.phase, StoryPhase::MurkWandering);
+    }
+}
+

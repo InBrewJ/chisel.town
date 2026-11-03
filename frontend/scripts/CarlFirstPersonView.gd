@@ -198,6 +198,12 @@ func _perform_dig_strike(key: String) -> void:
 
 func _choose_branch(choice: String) -> void:
 	if story_phase == "TheDig":
+		if choice == "right":
+			_status_label.text = "OBSTACLE: HARD FAULT IMPENETRABLE! CHISEL BASALT (LEFT)"
+			_status_label.modulate = Color(1.0, 0.2, 0.2, 1.0)
+			_screen_shake = 7.0
+			if _subtitle_label:
+				_subtitle_label.text = '[CARL C-%02d]: "The drill bit shattered... it\'s solid diamond slate. We have to take the left vein!"' % clone_number
 		action_requested.emit("dig_branch", {"choice": choice})
 
 func _input(event: InputEvent) -> void:
