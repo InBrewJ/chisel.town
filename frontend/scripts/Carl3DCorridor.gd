@@ -22,6 +22,7 @@ var _buildings_root: Node3D = null
 var _bedrock_mesh: MeshInstance3D = null
 var _oil_plane: MeshInstance3D = null
 var _barricade_root: Node3D = null
+var _spark_light: OmniLight3D = null
 
 # Josiah Reference (Task 4)
 var _josiah_node: Node3D = null
@@ -232,6 +233,14 @@ func _build_bedrock_face(parent: Node3D) -> void:
 	_bedrock_mesh.material_override = rock_mat
 	parent.add_child(_bedrock_mesh)
 
+	# Strike Spark Light
+	_spark_light = OmniLight3D.new()
+	_spark_light.position = Vector3(0.0, 1.4, -49.8)
+	_spark_light.light_color = Color(1.0, 0.85, 0.4, 1.0)
+	_spark_light.light_energy = 0.0
+	_spark_light.omni_range = 5.0
+	parent.add_child(_spark_light)
+
 func rebuild_placed_buildings(buildings: Array) -> void:
 	town_buildings = buildings
 	for child in _buildings_root.get_children():
@@ -438,12 +447,16 @@ func _update_ui_elements() -> void:
 			_branch_panel.visible = false
 			_status_label.text = "CRITICAL BREACH // 3D CRUDE OIL FLOODING"
 			_status_label.modulate = Color(0.95, 0.15, 0.15, 1.0)
+			if _bedrock_mesh:
+				_bedrock_mesh.position.y = -2.0
 		_:
 			_advance_btn.visible = false
 			_dig_bar.visible = false
 			_dig_left_btn.visible = false
 			_dig_right_btn.visible = false
 			_branch_panel.visible = false
+			if _bedrock_mesh:
+				_bedrock_mesh.position.y = 3.0
 
 func _on_advance_pressed() -> void:
 	if story_phase == "MurkWandering":
@@ -454,7 +467,9 @@ func _on_advance_pressed() -> void:
 func _perform_dig_strike(key: String = "A") -> void:
 	if story_phase == "TheDig" and dig_state == "Digging":
 		_shovel_swing_timer = 0.25
-		_screen_shake = 5.0
+		_screen_shake = 6.0
+		if _spark_light:
+			_spark_light.light_energy = 3.5
 		action_requested.emit("dig_strike", {})
 
 func _choose_branch(choice: String) -> void:
@@ -496,6 +511,10 @@ func _process(delta: float) -> void:
 	# Shovel swing timer
 	if _shovel_swing_timer > 0.0:
 		_shovel_swing_timer = maxf(0.0, _shovel_swing_timer - delta)
+
+	# Spark light damping
+	if _spark_light and _spark_light.light_energy > 0.0:
+		_spark_light.light_energy = maxf(0.0, _spark_light.light_energy - delta * 15.0)
 
 	# Camera Positioning based on corridor progress
 	if _camera:
