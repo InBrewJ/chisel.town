@@ -71,8 +71,13 @@ async fn handle_socket(socket: WebSocket) {
                             break;
                         }
                     }
+                    Some(Ok(Message::Text(text))) => {
+                        if let Ok(action) = serde_json::from_str::<crate::simulation::ClientAction>(&text) {
+                            engine.handle_action(action);
+                        }
+                    }
                     Some(Ok(_)) => {
-                        // Ignore text/binary client messages for now
+                        // Ignore binary client messages
                     }
                     Some(Err(_)) => {
                         break;

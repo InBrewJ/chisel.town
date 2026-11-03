@@ -142,3 +142,37 @@ pub fn chronicler_log_for(phase: StoryPhase, clone_num: usize) -> String {
         }
     }
 }
+
+pub fn carl_muttering_for(phase: StoryPhase, corridor_p: f32, dig_p: f32, rock_hit: bool) -> String {
+    match phase {
+        StoryPhase::Decanting => {
+            "Amniotic nutrient circulation steady. Awaiting release vector...".to_string()
+        }
+        StoryPhase::MurkWandering => {
+            if corridor_p < 0.35 {
+                "The fog... it smells like kerosene and scorched iron. Just keep walking through the buildings.".to_string()
+            } else if corridor_p < 0.75 {
+                "Father said stay within the inner quadrant. But the humming beneath the bricks... it calls.".to_string()
+            } else {
+                "Almost at the hazard fissure. Shovel is gripped tight in hand. I have to break through.".to_string()
+            }
+        }
+        StoryPhase::TheDig => {
+            if rock_hit {
+                "CLANG! Hard bedrock encountered! The seam splits: left basalt vein looks softer, right fault looks fractured.".to_string()
+            } else if dig_p < 0.4 {
+                "Dig! Strike the gravel! Clear the loose soot before the tremors collapse the tunnel!".to_string()
+            } else if dig_p < 0.8 {
+                "The pick bites into the dark rock. Black sweat in my eyes... faster!".to_string()
+            } else {
+                "Cracks spreading! Black viscous oil is weeping through the seam... one final blow!".to_string()
+            }
+        }
+        StoryPhase::ToxicCollapse => {
+            "The barrier ruptured! It's flooding! DARRAN!... Father! Cold... black... *choking*".to_string()
+        }
+        StoryPhase::ColdReset => {
+            "Telemetry flatlined. Purging quadrant for subsequent iteration.".to_string()
+        }
+    }
+}
