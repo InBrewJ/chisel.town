@@ -232,3 +232,40 @@ fn test_encounter_dialogue_reduces_paranoia() {
     assert!(next_paranoia < before_paranoia);
 }
 
+#[test]
+fn test_player_move_backward_and_clamping() {
+    let mut engine = SimulationEngine::new();
+    engine.handle_action(ClientAction::ReleaseClone);
+    engine.tick(0.1);
+    assert_eq!(engine.phase(), StoryPhase::MurkWandering);
+
+    // Initial position is at 0.0 progress
+    assert_eq!(engine.current_state().carl_corridor_progress, 0.0);
+
+    // Backward move at start clamps cleanly at 0.0
+    engine.handle_action(ClientAction::PlayerMove { step: -0.15 });
+    assert_eq!(engine.current_state().carl_corridor_progress, 0.0);
+    assert_eq!(engine.current_state().carl_position, (10.0, 10.0));
+
+    // Move forward
+    engine.handle_action(ClientAction::PlayerMove { step: 0.40 });
+    let state = engine.current_state();
+    assert!((state.carl_corridor_progress - 0.40).abs() < 1e-4);
+    assert!((state.carl_position.0 - 26.0).abs() < 1e-4);
+
+    // Backtrack with S (negative step)
+    engine.handle_action(ClientAction::PlayerMove { step: -0.15 });
+    let back_state = engine.current_state();
+    assert!((back_state.carl_corridor_progress - 0.25).abs() < 1e-4);
+    assert!((back_state.carl_position.0 - 20.0).abs() < 1e-4);
+    assert!(back_state.carl_paranoia <= state.carl_paranoia);
+
+    // Over-reverse clamps at 0.0
+    engine.handle_action(ClientAction::PlayerMove { step: -0.80 });
+    let clamp_state = engine.current_state();
+    assert_eq!(clamp_state.carl_corridor_progress, 0.0);
+    assert_eq!(clamp_state.carl_position, (10.0, 10.0));
+    assert!(clamp_state.carl_paranoia.is_finite());
+}
+
+
