@@ -60,6 +60,21 @@ func _generate_swarm_block_seeds() -> void:
 		for y in range(45, 62, 3):
 			_swarm_block_coords.append(Vector2(x, y))
 
+func inject_morphology(morphology_type: String) -> void:
+	match morphology_type:
+		"Monolith Spires":
+			for x in range(15, 30, 2):
+				_swarm_block_coords.append(Vector2(x, 35))
+				_swarm_block_coords.append(Vector2(x, 40))
+		"Bastion Wall":
+			for y in range(10, 50, 2):
+				_swarm_block_coords.append(Vector2(40, y))
+		"Labyrinth Habitats":
+			for i in range(5):
+				_swarm_block_coords.append(Vector2(20 + i * 4, 20 + i * 3))
+				_swarm_block_coords.append(Vector2(25 + i * 3, 30 + i * 2))
+	queue_redraw()
+
 func update_world_state(state: Dictionary) -> void:
 	if state.has("town_cohesion"):
 		town_cohesion = float(state["town_cohesion"])

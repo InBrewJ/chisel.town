@@ -57,6 +57,16 @@ func disconnect_from_server() -> void:
 	_reconnect_active = false
 	_ws.close()
 
+func send_action(action_type: String, data: Dictionary = {}) -> bool:
+	if _ws.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		return false
+	var payload: Dictionary = {"action": action_type}
+	for key in data.keys():
+		payload[key] = data[key]
+	var json_str = JSON.stringify(payload)
+	var err = _ws.put_packet(json_str.to_utf8_buffer())
+	return err == OK
+
 func _process(delta: float) -> void:
 	_ws.poll()
 	var state = _ws.get_ready_state()
