@@ -48,6 +48,46 @@ func _ready() -> void:
 	
 	_apply_initial_telemetry()
 	_setup_interactive_components()
+	_setup_js_bridge()
+
+func _setup_js_bridge() -> void:
+	if Engine.has_singleton("JavaScriptBridge"):
+		var bridge = Engine.get_singleton("JavaScriptBridge")
+		if bridge:
+			bridge.eval("""
+				window.chiselReady = true;
+				window.chiselPhase = 'Decanting';
+				window.chiselClone = 1;
+				window._chiselQueuedAction = null;
+				window.chiselAction = function(act, param) {
+					window._chiselQueuedAction = act + (param !== undefined ? ':' + param : '');
+				};
+			""")
+			print("[TerminalUI] JavaScript window bridge established.")
+
+func _dispatch_action(act_str: String) -> void:
+	var parts = act_str.split(":")
+	var act = parts[0]
+	match act:
+		"release_clone":
+			_on_release_pressed()
+		"player_move":
+			var step: float = float(parts[1]) if parts.size() > 1 else 0.1
+			if carl_view:
+				carl_view._walk_step_anim += 1.0
+				carl_view._screen_shake = 3.0
+			if network_client:
+				network_client.send_action("player_move", {"step": step})
+		"dig_strike":
+			if carl_view:
+				carl_view._perform_dig_strike("A")
+		"dig_branch":
+			var choice: String = parts[1] if parts.size() > 1 else "left"
+			if carl_view:
+				carl_view._choose_branch(choice)
+		"select_morphology":
+			var m_type: String = parts[1] if parts.size() > 1 else "Bastion Wall"
+			_inject_morphology(m_type)
 
 func _setup_interactive_components() -> void:
 	# 1. Carl's First-Person Viewport
@@ -214,6 +254,14 @@ func _apply_initial_telemetry() -> void:
 
 func _process(delta: float) -> void:
 	_anim_time += delta
+
+	if Engine.has_singleton("JavaScriptBridge"):
+		var bridge = Engine.get_singleton("JavaScriptBridge")
+		if bridge:
+			var act = bridge.eval("window._chiselQueuedAction || ''")
+			if act != null and str(act) != "":
+				bridge.eval("window._chiselQueuedAction = '';")
+				_dispatch_action(str(act))
 	
 	if live_indicator:
 		if _is_connected:
@@ -268,6 +316,13 @@ func _on_state_updated(state: Dictionary) -> void:
 				operator_badge.text = "DARRAN HOLLUS [CYCLE %02d: PLANNING]" % clone_num
 			if morphology_box:
 				morphology_box.visible = true
+	
+	# Update bridge telemetry safely at end of state update
+	if Engine.has_singleton("JavaScriptBridge"):
+		var bridge = Engine.get_singleton("JavaScriptBridge")
+		if bridge:
+			var json_payload = JSON.stringify(state)
+			bridge.eval("try { window.chiselState = " + json_payload + "; window.chiselPhase = window.chiselState.phase; window.chiselClone = window.chiselState.clone_number; window.chiselDigState = window.chiselState.dig_state; window.chiselDigProgress = window.chiselState.dig_progress; window.chiselSubtitles = window.chiselState.active_subtitles; } catch(e) { console.error('Bridge state error:', e); }")
 	
 	# Town Cohesion Telemetry
 	if state.has("town_cohesion") and cohesion_bar and cohesion_val:

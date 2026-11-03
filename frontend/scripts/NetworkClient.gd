@@ -35,7 +35,7 @@ func resolve_server_url() -> String:
 				if host == "chisel.town" or host.ends_with(".chisel.town"):
 					return "wss://bob.chisel.town/ws"
 				elif host == "localhost" or host == "127.0.0.1":
-					return "ws://localhost:7770/ws"
+					return "ws://127.0.0.1:7770/ws"
 	return server_url
 
 func connect_to_server() -> void:
@@ -64,7 +64,9 @@ func send_action(action_type: String, data: Dictionary = {}) -> bool:
 	for key in data.keys():
 		payload[key] = data[key]
 	var json_str = JSON.stringify(payload)
-	var err = _ws.put_packet(json_str.to_utf8_buffer())
+	var err = _ws.send_text(json_str)
+	if err != OK:
+		err = _ws.put_packet(json_str.to_utf8_buffer())
 	return err == OK
 
 func _process(delta: float) -> void:

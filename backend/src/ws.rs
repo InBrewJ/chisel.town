@@ -32,12 +32,14 @@ async fn health_handler() -> impl IntoResponse {
 
 /// WebSocket upgrade handler that accepts connection upgrades to `/ws`.
 async fn ws_handler(ws: WebSocketUpgrade) -> impl IntoResponse {
+    println!("[Server] Incoming WebSocket upgrade request on /ws");
     ws.on_upgrade(handle_socket)
 }
 
 /// Handles an active WebSocket connection, running an isolated SimulationEngine
 /// session at ~15 Hz (66ms interval, dt = 0.0666s).
 async fn handle_socket(socket: WebSocket) {
+    println!("[Server] WebSocket connection established! Starting simulation session...");
     let (mut sender, mut receiver) = socket.split();
     let mut engine = SimulationEngine::new();
     let mut interval = tokio::time::interval(Duration::from_millis(TICK_INTERVAL_MS));
@@ -64,6 +66,7 @@ async fn handle_socket(socket: WebSocket) {
                 match client_msg {
                     Some(Ok(Message::Close(_))) | None => {
                         // Clean disconnect or EOF
+                        println!("[Server] WebSocket connection closed by client.");
                         break;
                     }
                     Some(Ok(Message::Ping(ping))) => {
@@ -72,14 +75,36 @@ async fn handle_socket(socket: WebSocket) {
                         }
                     }
                     Some(Ok(Message::Text(text))) => {
-                        if let Ok(action) = serde_json::from_str::<crate::simulation::ClientAction>(&text) {
-                            engine.handle_action(action);
+                        println!("[Server] Received text from client: {}", text);
+                        match serde_json::from_str::<crate::simulation::ClientAction>(&text) {
+                            Ok(action) => {
+                                println!("[Server] Handling action: {:?}", action);
+                                engine.handle_action(action);
+                            }
+                            Err(err) => {
+                                eprintln!("[Server] Failed to deserialize action: {} err: {}", text, err);
+                            }
+                        }
+                    }
+                    Some(Ok(Message::Binary(bytes))) => {
+                        if let Ok(text) = String::from_utf8(bytes) {
+                            println!("[Server] Received binary UTF-8 from client: {}", text);
+                            match serde_json::from_str::<crate::simulation::ClientAction>(&text) {
+                                Ok(action) => {
+                                    println!("[Server] Handling action: {:?}", action);
+                                    engine.handle_action(action);
+                                }
+                                Err(err) => {
+                                    eprintln!("[Server] Failed to deserialize binary action: {} err: {}", text, err);
+                                }
+                            }
                         }
                     }
                     Some(Ok(_)) => {
-                        // Ignore binary client messages
+                        // Ignore other frame types
                     }
-                    Some(Err(_)) => {
+                    Some(Err(err)) => {
+                        eprintln!("[Server] WebSocket error: {err}");
                         break;
                     }
                 }
