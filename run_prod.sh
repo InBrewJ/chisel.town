@@ -23,6 +23,8 @@ fi
 # 2. Stop and remove existing containers
 echo "Stopping previous Chisel Town containers..."
 $DOCKER_COMPOSE -p chisel-town -f docker/docker-compose.yml down --remove-orphans || true
+# Clean up any legacy chisel containers created before project scoping
+docker rm -f chisel-backend chisel-frontend 2>/dev/null || true
 
 # 3. Start containers in detached mode
 echo "Starting Chisel Town 1855 containers (backend: 7770, frontend: 7771)..."
