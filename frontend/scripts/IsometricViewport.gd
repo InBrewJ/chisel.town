@@ -34,6 +34,16 @@ const POS_EXCAVATION_SITE: Vector2 = Vector2(60.0, 60.0)
 # Swarm block seeds for terrain deformation
 var _swarm_block_coords: Array[Vector2] = []
 
+# Street Sites and Landmarks
+const SITE_COORDS = [
+	Vector2(18.0, 18.0),
+	Vector2(26.0, 26.0),
+	Vector2(34.0, 34.0),
+	Vector2(42.0, 42.0)
+]
+const BOB_CABIN_COORD = Vector2(58.0, 14.0)
+var placed_buildings: Array = []
+
 func _init() -> void:
 	if ClassDB.class_exists("SwarmLattice"):
 		_swarm_lattice = ClassDB.instantiate("SwarmLattice")
@@ -94,10 +104,15 @@ func update_world_state(state: Dictionary) -> void:
 		elif typeof(raw_pos) == TYPE_VECTOR2:
 			carl_target_pos = raw_pos
 	
+	if state.has("town_buildings"):
+		placed_buildings = state["town_buildings"]
+	
 	# If in ColdReset or fresh Decanting rollover, reset trail
 	if story_phase == "ColdReset" or (story_phase == "Decanting" and elapsed_seconds < 1.0):
 		_carl_trail.clear()
 		carl_current_pos = carl_target_pos
+	
+	queue_redraw()
 
 func _process(delta: float) -> void:
 	_anim_time += delta
@@ -185,6 +200,9 @@ func _draw() -> void:
 	_draw_rustbowl_hall(origin)
 	_draw_murk_hazard_pit(origin)
 	_draw_excavation_site(origin)
+	_draw_street_site_plots(origin)
+	_draw_placed_buildings(origin)
+	_draw_bobs_stilt_cabin(origin)
 	
 	# 6. Carl 01 Path History & Tracked Agent Reticle
 	_draw_carl_trail(origin)
@@ -539,3 +557,104 @@ func _draw_surveillance_hud_overlay(origin: Vector2) -> void:
 	# Bottom-Right
 	draw_line(Vector2(size.x - 20, size.y - 15), Vector2(size.x - 20 - ch_len, size.y - 15), hud_dim, 1.0)
 	draw_line(Vector2(size.x - 20, size.y - 15), Vector2(size.x - 20, size.y - 15 - ch_len), hud_dim, 1.0)
+
+func _draw_street_site_plots(origin: Vector2) -> void:
+	var font = ThemeDB.fallback_font
+	for i in range(SITE_COORDS.size()):
+		var coord = SITE_COORDS[i]
+		var screen_pos = origin + world_to_iso(coord.x, coord.y)
+		var w = tile_width * 1.6
+		var h = tile_height * 1.6
+		var diamond: PackedVector2Array = [
+			screen_pos + Vector2(0, -h),
+			screen_pos + Vector2(w, 0),
+			screen_pos + Vector2(0, h),
+			screen_pos + Vector2(-w, 0)
+		]
+		draw_colored_polygon(diamond, Color(0.12, 0.28, 0.42, 0.35))
+		draw_polyline(diamond, Color(0.3, 0.85, 1.0, 0.7), 1.2)
+		draw_string(font, screen_pos + Vector2(-24, 4), "PLOT %d" % (i + 1), HORIZONTAL_ALIGNMENT_CENTER, 48, 8, Color(0.4, 0.9, 1.0, 0.85))
+
+func _draw_placed_buildings(origin: Vector2) -> void:
+	var font = ThemeDB.fallback_font
+	for b in placed_buildings:
+		var s_id: int = int(b.get("site_id", 0))
+		if s_id < 0 or s_id >= SITE_COORDS.size():
+			continue
+		var coord = SITE_COORDS[s_id]
+		var screen_pos = origin + world_to_iso(coord.x, coord.y)
+		var tier: int = int(b.get("tier", 1))
+		var b_type: String = str(b.get("building_type", "Structure"))
+		
+		var bw = tile_width * 1.4
+		var bh = tile_height * 1.4
+		var total_h = float(tier) * 14.0
+		
+		for t in range(tier):
+			var base_y = -float(t) * 14.0
+			var p_base = screen_pos + Vector2(0, base_y)
+			var p_top = screen_pos + Vector2(0, base_y - 12.0)
+			
+			var wall_col = Color(0.75, 0.28, 0.22, 0.95) if ("Hospital" in b_type or "School" in b_type or "Luthier" in b_type or "Store" in b_type) else Color(0.38, 0.42, 0.48, 0.95)
+			
+			var left_wall: PackedVector2Array = [
+				p_base + Vector2(-bw, 0), p_base + Vector2(0, bh),
+				p_top + Vector2(0, bh), p_top + Vector2(-bw, 0)
+			]
+			draw_colored_polygon(left_wall, wall_col * 0.75)
+			
+			var right_wall: PackedVector2Array = [
+				p_base + Vector2(0, bh), p_base + Vector2(bw, 0),
+				p_top + Vector2(bw, 0), p_top + Vector2(0, bh)
+			]
+			draw_colored_polygon(right_wall, wall_col * 0.9)
+			
+			var roof: PackedVector2Array = [
+				p_top + Vector2(0, -bh), p_top + Vector2(bw, 0),
+				p_top + Vector2(0, bh), p_top + Vector2(-bw, 0)
+			]
+			draw_colored_polygon(roof, wall_col)
+			draw_polyline(roof, Color(0.95, 0.85, 0.35, 0.9) if t == tier - 1 else Color(0.2, 0.2, 0.2, 0.8), 1.0)
+			
+		var label_y = -total_h - 4.0
+		var short_name = b_type.split(" ")[0]
+		draw_string(font, screen_pos + Vector2(-36, label_y), "[T%d] %s" % [tier, short_name], HORIZONTAL_ALIGNMENT_CENTER, 72, 8, Color(0.95, 0.85, 0.35, 0.95))
+
+func _draw_bobs_stilt_cabin(origin: Vector2) -> void:
+	var font = ThemeDB.fallback_font
+	var screen_pos = origin + world_to_iso(BOB_CABIN_COORD.x, BOB_CABIN_COORD.y)
+	
+	# Beached whale ribs (ivory bone arches)
+	var bone_col = Color(0.88, 0.88, 0.82, 0.65)
+	for i in range(-2, 3):
+		var offset = Vector2(i * 10, i * 5)
+		draw_arc(screen_pos + offset + Vector2(0, 8), 14.0, PI * 1.15, PI * 1.85, 12, bone_col, 2.0)
+	
+	# Wooden stilts
+	var stilt_col = Color(0.48, 0.32, 0.20, 1.0)
+	var cabin_h = 22.0
+	draw_line(screen_pos + Vector2(-8, 6), screen_pos + Vector2(-8, -cabin_h + 6), stilt_col, 2.0)
+	draw_line(screen_pos + Vector2(8, 6), screen_pos + Vector2(8, -cabin_h + 6), stilt_col, 2.0)
+	draw_line(screen_pos + Vector2(0, 10), screen_pos + Vector2(0, -cabin_h + 10), stilt_col, 2.0)
+	
+	# Cabin structure on stilts
+	var c_origin = screen_pos + Vector2(0, -cabin_h)
+	var cabin_body = Rect2(c_origin + Vector2(-12, -10), Vector2(24, 16))
+	draw_rect(cabin_body, Color(0.38, 0.24, 0.14, 1.0))
+	draw_rect(cabin_body, Color(0.68, 0.48, 0.28, 1.0), false, 1.2)
+	
+	# Roof
+	var roof_pts: PackedVector2Array = [
+		c_origin + Vector2(-15, -10),
+		c_origin + Vector2(0, -18),
+		c_origin + Vector2(15, -10)
+	]
+	draw_colored_polygon(roof_pts, Color(0.58, 0.20, 0.14, 1.0))
+	
+	# Glowing window
+	var window_pulse = 0.6 + 0.4 * sin(_anim_time * 3.5)
+	draw_circle(c_origin + Vector2(0, -2), 3.5, Color(0.95, 0.78, 0.25, window_pulse))
+	
+	# Label
+	draw_string(font, c_origin + Vector2(-48, -22), "BOB SWEENEY [STILTS]", HORIZONTAL_ALIGNMENT_CENTER, 96, 8, Color(0.45, 0.95, 0.75, 0.95))
+

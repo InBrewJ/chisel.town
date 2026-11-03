@@ -35,6 +35,10 @@ var cohesion_slider: HSlider = null
 var paranoia_slider: HSlider = null
 var pressure_slider: HSlider = null
 var morphology_box: PanelContainer = null
+var site_buttons_box: PanelContainer = null
+var bob_view_btn: Button = null
+var bob_view_active: bool = false
+var selected_blueprint: String = "Iron Barricade"
 
 var _anim_time: float = 0.0
 var _is_connected: bool = false
@@ -88,8 +92,23 @@ func _dispatch_action(act_str: String) -> void:
 		"select_morphology":
 			var m_type: String = parts[1] if parts.size() > 1 else "Bastion Wall"
 			_inject_morphology(m_type)
+		"place_building":
+			var site_id: int = int(parts[1]) if parts.size() > 1 else 0
+			var b_type: String = parts[2] if parts.size() > 2 else selected_blueprint
+			_place_building(site_id, b_type)
+		"toggle_bob_view":
+			_toggle_bob_view()
 
 func _setup_interactive_components() -> void:
+	# 0. Bob's View Header Toggle Button
+	var header_hbox = $MainLayout/HeaderBar/HeaderHBox
+	if header_hbox:
+		bob_view_btn = Button.new()
+		bob_view_btn.text = "[BOB'S VIEW]"
+		bob_view_btn.custom_minimum_size = Vector2(100, 26)
+		bob_view_btn.pressed.connect(_toggle_bob_view)
+		header_hbox.add_child(bob_view_btn)
+
 	# 1. Carl's First-Person Viewport
 	carl_view = CarlFirstPersonView.new()
 	carl_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -171,6 +190,29 @@ func _setup_interactive_components() -> void:
 		sidebar_vbox.add_child(darran_controls_box)
 		sidebar_vbox.move_child(darran_controls_box, 1)
 
+		# 2b. Corridor Site Placement Panel
+		site_buttons_box = PanelContainer.new()
+		var svb = VBoxContainer.new()
+		svb.add_theme_constant_override("separation", 4)
+		var s_hdr = Label.new()
+		s_hdr.text = "// BLUEPRINT PLACEMENT (CORRIDOR SITES)"
+		s_hdr.modulate = Color(0.3, 0.9, 0.6, 1.0)
+		svb.add_child(s_hdr)
+
+		var s_row = HBoxContainer.new()
+		s_row.add_theme_constant_override("separation", 6)
+		for i in range(4):
+			var btn = Button.new()
+			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			btn.text = "P%d" % (i + 1)
+			var s_idx = i
+			btn.pressed.connect(func(): _place_selected_building(s_idx))
+			s_row.add_child(btn)
+		svb.add_child(s_row)
+		site_buttons_box.add_child(svb)
+		sidebar_vbox.add_child(site_buttons_box)
+		sidebar_vbox.move_child(site_buttons_box, 2)
+
 		# 3. Morphology Injection Panel (Initially Hidden)
 		morphology_box = PanelContainer.new()
 		var mvb = VBoxContainer.new()
@@ -225,6 +267,23 @@ func _on_slider_changed(_val: float) -> void:
 			"paranoia": paranoia_slider.value,
 			"pressure": pressure_slider.value
 		})
+
+func _place_selected_building(site_id: int) -> void:
+	_place_building(site_id, selected_blueprint)
+
+func _place_building(site_id: int, b_type: String) -> void:
+	if network_client:
+		network_client.send_action("place_building", {
+			"site_id": site_id,
+			"building_type": b_type
+		})
+
+func _toggle_bob_view() -> void:
+	bob_view_active = !bob_view_active
+	if bob_view_btn:
+		bob_view_btn.text = "[TOWN MAP]" if bob_view_active else "[BOB'S VIEW]"
+	if viewport:
+		viewport.visible = !bob_view_active
 
 func _on_carl_action_requested(action_type: String, data: Dictionary) -> void:
 	if network_client:
@@ -310,13 +369,26 @@ func _on_state_updated(state: Dictionary) -> void:
 			darran_controls_box.visible = false
 		if morphology_box:
 			morphology_box.visible = false
+		if site_buttons_box:
+			site_buttons_box.visible = false
+		if bob_view_btn:
+			bob_view_btn.visible = false
 	else:
 		# Decanting or ColdReset
+		if bob_view_btn:
+			bob_view_btn.visible = true
 		if viewport:
-			viewport.visible = true
+			viewport.visible = !bob_view_active
 			viewport.update_world_state(state)
 		if carl_view:
 			carl_view.visible = false
+		if site_buttons_box:
+			site_buttons_box.visible = true
+
+		if state.has("available_morphologies"):
+			var avail: Array = state["available_morphologies"]
+			if avail.size() > 0:
+				selected_blueprint = str(avail[0])
 		if clone_num > 1:
 			if operator_badge:
 				operator_badge.text = "DARRAN HOLLUS [CYCLE %02d: PLANNING]" % clone_num
